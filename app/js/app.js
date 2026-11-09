@@ -750,7 +750,7 @@
     playingType = 'audio';
     curMsgId = Number(msgId);
     resolveMediaChat(msgId);
-    var url = BACKEND + '/api/audio?chat=' + enc(curMediaChat) + '&className=' + enc(curMediaClass) + '&msgId=' + enc(String(msgId));
+    var url = BACKEND + '/api/audio?chat=' + enc(curMediaChat) + '&className=' + enc(curMediaClass) + '&msgId=' + enc(String(msgId)) + '&native=1';
     $('player-title').textContent = curChatTitle || '';
     $('player-msg').textContent = t('loading_music');
     try { $('video').pause(); } catch (e) {}
