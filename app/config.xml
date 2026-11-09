@@ -1,11 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<widget xmlns="http://www.w3.org/ns/widgets" xmlns:tizen="http://tizen.org/ns/widgets" id="https://github.com/arrietaoadrian/telegram-tv-tizen" version="0.5.1" viewmodes="maximized">
-  <access origin="*" subdomains="true"/>
-  <tizen:application id="com.telegramtv.app" package="com.telegramtv.app" required_version="2.3"/>
-  <content src="index.html"/>
-  <feature name="http://tizen.org/feature/network.internet"/>
-  <icon src="icon.png"/>
-  <name>Telegram TV</name>
-  <tizen:privilege name="http://tizen.org/privilege/internet"/>
-  <tizen:profile name="tv"/>
+<widget xmlns:tizen="http://tizen.org/ns/widgets" xmlns="http://www.w3.org/ns/widgets" id="http://telegramtv.app/TelegramTV" version="0.5.1" viewmodes="fullscreen">
+    <access origin="*" subdomains="true"></access>
+    <tizen:application id="telegramtv.TelegramTV" package="telegramtv" required_version="2.3"/>
+    <author href="http://telegramtv.app" email="app@telegramtv.app">Telegram TV</author>
+    <content src="index.html"/>
+    <description>Telegram TV for Samsung Smart TV (Tizen).</description>
+    <feature name="http://tizen.org/feature/screen.size.all"/>
+    <icon src="icon.png"/>
+    <tizen:metadata key="http://tizen.org/metadata/app_ui_type/base_screen_resolution" value="fullscreen"/>
+    <name>Telegram TV</name>
+    <tizen:privilege name="http://tizen.org/privilege/internet"/>
+    <tizen:privilege name="http://tizen.org/privilege/tv.inputdevice"/>
+    <tizen:profile name="tv"/>
+    <tizen:setting screen-orientation="auto-rotation" context-menu="enable" background-support="disable" encryption="disable" install-location="auto" hwkey-event="enable"/>
 </widget>
