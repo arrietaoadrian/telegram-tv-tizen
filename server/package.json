@@ -1,0 +1,14 @@
+{
+    "name": "telegram-tv-backend",
+    "version": "0.5.1",
+    "description": "Servidor de Telegram para la app Telegram TV (webOS / Tizen)",
+    "main": "server.js",
+    "scripts": {
+        "start": "node server.js"
+    },
+    "dependencies": {
+        "qrcode": "^1.5.4",
+        "telegram": "^2.26.22"
+    }
+}
+

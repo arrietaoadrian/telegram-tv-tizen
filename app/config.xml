@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<widget xmlns="http://www.w3.org/ns/widgets" xmlns:tizen="http://tizen.org/ns/widgets" id="https://github.com/arrietaoadrian/telegram-tv-tizen" version="0.5.1" viewmodes="maximized">
+  <access origin="*" subdomains="true"/>
+  <tizen:application id="com.telegramtv.app" package="com.telegramtv.app" required_version="2.3"/>
+  <content src="index.html"/>
+  <feature name="http://tizen.org/feature/network.internet"/>
+  <feature name="http://tizen.org/feature/tv.inputdevice"/>
+  <icon src="icon.png"/>
+  <name>Telegram TV</name>
+  <tizen:privilege name="http://tizen.org/privilege/internet"/>
+  <tizen:privilege name="http://tizen.org/privilege/application.launch"/>
+  <tizen:profile name="tv"/>
+</widget>
