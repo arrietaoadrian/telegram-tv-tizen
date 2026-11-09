@@ -701,7 +701,7 @@
     playingType = item ? item.type : 'video';
     curMsgId = Number(msgId);
     resolveMediaChat(msgId);
-    videoUrl = BACKEND + '/api/video?chat=' + enc(curMediaChat) + '&className=' + enc(curMediaClass) + '&msgId=' + enc(String(msgId));
+    videoUrl = BACKEND + '/api/video?chat=' + enc(curMediaChat) + '&className=' + enc(curMediaClass) + '&msgId=' + enc(String(msgId)) + '&native=1';
     $('player-title').textContent = curChatTitle || '';
     $('player-msg').textContent = (playingType === 'video_file') ? t('converting_mkv') : t('loading_video');
     try { $('audio').pause(); } catch (e) {}
