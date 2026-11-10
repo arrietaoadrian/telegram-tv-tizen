@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<widget xmlns:tizen="http://tizen.org/ns/widgets" xmlns="http://www.w3.org/ns/widgets" id="http://telegramtv.app/TelegramTV" version="0.5.1" viewmodes="fullscreen">
+<widget xmlns:tizen="http://tizen.org/ns/widgets" xmlns="http://www.w3.org/ns/widgets" id="http://telegramtv.app/TelegramTV" version="0.6.0" viewmodes="fullscreen">
     <access origin="*" subdomains="true"></access>
     <tizen:application id="telegramtv.TelegramTV" package="telegramtv" required_version="2.3"/>
     <author href="http://telegramtv.app" email="app@telegramtv.app">Telegram TV</author>

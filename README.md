@@ -53,13 +53,13 @@ Using **Tizen Studio** (recommended):
 1. Install [Tizen Studio](https://developer.samsung.com/smarttv/develop/tools/tizen-studio.html) (with the TV Extension SDK).
 2. Open **Device Manager**, connect to the TV's IP.
 3. Right-click the TV → **Permit to install applications**.
-4. Drag `bin/com.telegramtv.app_0.5.1.wgt` onto the device (it gets signed and installed automatically).
+4. Drag `bin/com.telegramtv.app_0.6.0.wgt` onto the device (it gets signed and installed automatically).
 
 Or from the command line with `sdb`:
 
 ```bash
 sdb connect <TV_IP>
-sdb install bin/com.telegramtv.app_0.5.1.wgt
+sdb install bin/com.telegramtv.app_0.6.0.wgt
 sdb shell 0 execute com.telegramtv.app
 ```
 
@@ -69,7 +69,7 @@ The `.wgt` is a ZIP with `config.xml` at the root. Rebuild it from `app/`:
 
 ```bash
 cd app
-zip -r ../bin/com.telegramtv.app_0.5.1.wgt config.xml index.html icon.png css js
+zip -r ../bin/com.telegramtv.app_0.6.0.wgt config.xml index.html icon.png css js
 ```
 
 (If you use Tizen Studio, you can also import `app/` as a Tizen Web project and build/sign from there.)
@@ -79,6 +79,16 @@ zip -r ../bin/com.telegramtv.app_0.5.1.wgt config.xml index.html icon.png css js
 - **Back key:** the Samsung remote "Return" button is `keyCode 10009` (webOS uses `461`). Already handled in `js/app.js`.
 - **Manifest:** Tizen uses `config.xml` instead of `appinfo.json`.
 - **Package:** `.wgt` instead of `.ipk`.
+
+## Samsung-specific enhancements (0.6.0)
+
+- **Instant video start + real seeking:** the backend serves video with HTTP Range and remuxes `native=1` MP4s to `+faststart` (files up to 1 GB) so the player can start before the whole file is read and seek anywhere.
+- **Remote color buttons:** RED opens search, GREEN filters music, YELLOW filters PDFs, BLUE cycles the UI text size.
+- **Text size:** 100% / 115% / 130%, applied live with CSS zoom and saved in `localStorage`.
+- **PDF on the TV:** PDFs are rendered locally with the bundled pdf.js 3.11 (`js/pdf/`), so page turns are instant and do not depend on `pdftoppm`. If pdf.js cannot load, the app automatically falls back to the server-rendered pages.
+- **4K / Tizen polish:** layout tuned for the 720p base resolution scaled to 4K, smoother focus/card transitions, smooth scrolling and larger focus rings.
+
+The shared backend stays compatible with the LG/webOS app: the new endpoints and faststart remux are additive, and `native=1` is only sent by the Tizen app.
 
 ## License
 

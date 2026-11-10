@@ -60,6 +60,11 @@
       filter_music: 'Música',
       filter_pdfs: 'PDFs',
       pdf: 'PDF',
+      pdf_loading: 'Cargando PDF...',
+      pdf_rendering: 'Renderizando...',
+      pdf_fallback: 'pdf.js falló; usando el servidor',
+      open_chat_first: 'Abre un chat primero',
+      text_size: 'Texto',
       months: ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
     },
     en: {
@@ -119,6 +124,11 @@
       filter_music: 'Music',
       filter_pdfs: 'PDFs',
       pdf: 'PDF',
+      pdf_loading: 'Loading PDF...',
+      pdf_rendering: 'Rendering...',
+      pdf_fallback: 'pdf.js failed; using server render',
+      open_chat_first: 'Open a chat first',
+      text_size: 'Text',
       months: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
     }
   };
@@ -171,6 +181,13 @@
   var videoLoadTimer = null;
   var curMediaChat = null;
   var curMediaClass = null;
+  var pdfDoc = null;
+  var pdfTask = null;
+  var pdfRenderTask = null;
+  var pdfUsingJs = false;
+  var toastTimer = null;
+  var uiScaleIdx = 0;
+  var UI_SCALES = [1, 1.15, 1.3];
 
   function $(id) { return document.getElementById(id); }
   function esc(s) {
@@ -221,6 +238,55 @@
   function progKey(chatId, msgId) { return chatId + ':' + msgId; }
 
   function showLoading(on) { $('loading').className = on ? '' : 'hidden'; }
+
+  // ===== Toast (avisos rápidos en pantalla) =====
+  function toast(msg, ms) {
+    var el = $('toast');
+    if (!el) return;
+    el.textContent = msg;
+    el.classList.remove('hidden');
+    el.classList.remove('show');
+    // Fuerza reflow para reiniciar la animación si ya estaba visible.
+    void el.offsetWidth;
+    el.classList.add('show');
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () {
+      el.classList.remove('show');
+      toastTimer = setTimeout(function () { el.classList.add('hidden'); }, 250);
+    }, ms || 2200);
+  }
+
+  // ===== Tamaño de texto/UI (zoom CSS, persistido) =====
+  function loadUiScale() {
+    try {
+      var v = parseFloat(localStorage.getItem('tg_uiscale'));
+      if (!isNaN(v)) {
+        var best = 0, bestDiff = Infinity;
+        for (var i = 0; i < UI_SCALES.length; i++) {
+          var d = Math.abs(UI_SCALES[i] - v);
+          if (d < bestDiff) { bestDiff = d; best = i; }
+        }
+        uiScaleIdx = best;
+      }
+    } catch (e) {}
+    applyUiScale();
+  }
+  function applyUiScale() {
+    var s = UI_SCALES[uiScaleIdx];
+    var app = $('app');
+    if (!app) return;
+    // zoom agranda toda la UI; width/height 100% se resuelven en el espacio
+    // zoomificado, así que la app sigue llenando la pantalla exactamente.
+    app.style.zoom = s;
+    app.style.width = '100%';
+    app.style.height = '100%';
+    try { localStorage.setItem('tg_uiscale', String(s)); } catch (e) {}
+  }
+  function cycleTextSize() {
+    uiScaleIdx = (uiScaleIdx + 1) % UI_SCALES.length;
+    applyUiScale();
+    toast(t('text_size') + ': ' + Math.round(UI_SCALES[uiScaleIdx] * 100) + '%');
+  }
 
   function setView(name) {
     $('view-setup').className = 'view' + (name === 'setup' ? '' : ' hidden');
@@ -572,10 +638,12 @@
     var p = photoList[photoIndex];
     if (!p) return;
     pdfMsgId = null;
+    cleanupPdf();
     var img = $('photo-img');
     img.onload = null;
     img.onerror = null;
     img.classList.remove('pdf-mode');
+    img.classList.remove('hidden');
     $('btn-photo-back').style.display = '';
     $('photo-scroll').scrollTop = 0;
     img.src = BACKEND + '/api/photo?chat=' + enc(p.chatId) + '&className=' + enc(p.className) + '&msgId=' + p.id;
@@ -594,23 +662,112 @@
     photoZoom = 1;
     renderPhoto();
   }
+
+  // ===== PDF (pdf.js local, con respaldo del servidor) =====
+  function cleanupPdf() {
+    pdfUsingJs = false;
+    if (pdfRenderTask) { try { pdfRenderTask.cancel(); } catch (e) {} pdfRenderTask = null; }
+    if (pdfDoc) { try { pdfDoc.destroy(); } catch (e) {} pdfDoc = null; }
+    if (pdfTask) { try { pdfTask.destroy(); } catch (e) {} pdfTask = null; }
+    var c = $('pdf-canvas');
+    if (c) c.classList.add('hidden');
+    var bar = $('pdf-bar');
+    if (bar) bar.classList.add('hidden');
+  }
+  function pdfRawUrl() {
+    return BACKEND + '/api/pdfraw?chat=' + enc(curMediaChat) + '&className=' + enc(curMediaClass) + '&msgId=' + pdfMsgId;
+  }
   function openPdf(msgId) {
     pdfMsgId = Number(msgId);
     pdfPage = 1;
     pdfPages = 1;
     resolveMediaChat(msgId);
+    cleanupPdf();
     var img = $('photo-img');
     img.onload = null;
     img.onerror = null;
     img.removeAttribute('src');
-    img.classList.add('pdf-mode');
-    img.style.transform = '';
+    img.classList.add('hidden');
+    var canvas = $('pdf-canvas');
+    canvas.classList.remove('hidden');
+    $('pdf-bar').classList.remove('hidden');
+    $('pdf-pageinfo').textContent = '1 / ...';
+    $('photo-caption').textContent = t('pdf_loading');
+    $('btn-photo-back').style.display = '';
+    $('photo-scroll').scrollTop = 0;
     setView('photo');
-    $('photo-caption').textContent = t('pdf') + ' 1 / ...';
-    $('btn-photo-back').style.display = 'none';
+    // Conteo de páginas rápido (también sirve de respaldo si pdf.js falla).
     api('/api/pdfinfo?chat=' + enc(curMediaChat) + '&className=' + enc(curMediaClass) + '&msgId=' + msgId, 'GET', null, function (err, data) {
-      if (!err && data && data.pages) pdfPages = data.pages;
-      renderPdf();
+      if (err || !data || !data.pages) return;
+      if (pdfMsgId !== Number(msgId) || pdfUsingJs) return;
+      pdfPages = data.pages;
+      $('pdf-pageinfo').textContent = pdfPage + ' / ' + pdfPages;
+    });
+    loadPdfJs();
+  }
+  function loadPdfJs() {
+    var msg = pdfMsgId;
+    if (!window.pdfjsLib) { renderPdfServer(); return; }
+    try {
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'js/pdf/pdf.worker.min.js';
+    } catch (e) {}
+    var task;
+    try {
+      task = window.pdfjsLib.getDocument({ url: pdfRawUrl() });
+    } catch (e) {
+      renderPdfServer();
+      return;
+    }
+    pdfTask = task;
+    task.promise.then(function (doc) {
+      if (msg !== pdfMsgId) { try { doc.destroy(); } catch (e) {} return; }
+      pdfDoc = doc;
+      pdfPages = doc.numPages;
+      pdfUsingJs = true;
+      $('pdf-pageinfo').textContent = pdfPage + ' / ' + pdfPages;
+      renderPdfPage();
+    }).catch(function (err) {
+      logToServer('pdf.js error: ' + (err && err.message ? err.message : err));
+      if (msg === pdfMsgId) {
+        toast(t('pdf_fallback'));
+        renderPdfServer();
+      }
+    });
+  }
+  function renderPdfPage() {
+    if (!pdfDoc) return;
+    var doc = pdfDoc;
+    var pageNum = pdfPage;
+    var canvas = $('pdf-canvas');
+    var scroller = $('photo-scroll');
+    var maxW = scroller.clientWidth || window.innerWidth || 1280;
+    // El TV escala 1280x720 a 4K: renderizar a 2x mantiene el texto nítido.
+    var dpr = Math.min(2, Math.max(1, window.devicePixelRatio || 1));
+    $('pdf-pageinfo').textContent = pageNum + ' / ' + pdfPages;
+    $('photo-caption').textContent = t('pdf');
+    doc.getPage(pageNum).then(function (page) {
+      if (doc !== pdfDoc || pageNum !== pdfPage) return;
+      var base = page.getViewport({ scale: 1 });
+      var viewport = page.getViewport({ scale: (maxW / base.width) * dpr });
+      canvas.width = Math.floor(viewport.width);
+      canvas.height = Math.floor(viewport.height);
+      canvas.style.width = '100%';
+      canvas.style.height = 'auto';
+      var ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      if (pdfRenderTask) { try { pdfRenderTask.cancel(); } catch (e) {} }
+      var task = page.render({ canvasContext: ctx, viewport: viewport });
+      pdfRenderTask = task;
+      task.promise.then(function () {
+        if (doc !== pdfDoc || pageNum !== pdfPage) return;
+        scroller.scrollTop = 0;
+      }).catch(function (err) {
+        if (err && err.name === 'RenderingCancelledException') return;
+        logToServer('pdf render error: ' + (err && err.message ? err.message : err));
+      });
+    }).catch(function (err) {
+      logToServer('pdf page error: ' + (err && err.message ? err.message : err));
     });
   }
   var pdfPreloads = [];
@@ -626,14 +783,31 @@
       if (pdfPreloads.length > 4) pdfPreloads.shift();
     } catch (e) {}
   }
-  function renderPdf() {
+  function goPdfPage(delta) {
     if (!pdfMsgId) return;
+    var p = pdfPage + delta;
+    if (p < 1) p = 1;
+    if (p > pdfPages) p = pdfPages;
+    if (p === pdfPage) return;
+    pdfPage = p;
+    if (pdfUsingJs && pdfDoc) renderPdfPage();
+    else renderPdfServer();
+  }
+  // Respaldo: el servidor rasteriza la página (como en la versión anterior).
+  function renderPdfServer() {
+    if (!pdfMsgId) return;
+    pdfUsingJs = false;
+    var canvas = $('pdf-canvas');
+    if (canvas) canvas.classList.add('hidden');
+    var bar = $('pdf-bar');
+    if (bar) bar.classList.remove('hidden');
     var page = pdfPage;
-    $('btn-photo-back').style.display = 'none';
+    $('pdf-pageinfo').textContent = page + ' / ' + pdfPages;
     $('photo-caption').textContent = t('pdf') + ' ' + page + ' / ' + pdfPages + ' ...';
-    // Chromium 38 (webOS) no repinta de forma fiable un <img> ya cargado al
-    // cambiarle el src. Se crea una imagen nueva y se sustituye solo cuando
-    // terminó de cargar, así la página cambia siempre.
+    // Se crea una imagen nueva y se sustituye solo cuando terminó de cargar,
+    // así la página cambia siempre (también en motores antiguos).
+    var old = $('photo-img');
+    if (old) old.classList.add('hidden');
     var ni = new Image();
     ni.id = 'photo-img';
     ni.className = 'pdf-mode';
@@ -643,7 +817,7 @@
       ni.onerror = null;
       if (page !== pdfPage || !pdfMsgId) return;
       var cur = $('photo-img');
-      if (cur && cur.parentNode) cur.parentNode.replaceChild(ni, cur);
+      if (cur && cur !== ni && cur.parentNode) cur.parentNode.replaceChild(ni, cur);
       $('photo-scroll').scrollTop = 0;
       setTimeout(function () { if (page === pdfPage && pdfMsgId) $('photo-scroll').scrollTop = 0; }, 100);
       $('photo-caption').textContent = t('pdf') + ' ' + page + ' / ' + pdfPages;
@@ -880,6 +1054,32 @@
 
   document.addEventListener('keydown', function (e) {
     var key = e.keyCode;
+
+    // ===== Botones de color del control Samsung =====
+    // ROJO 403 = buscar · VERDE 404 = música · AMARILLO 405 = PDFs · AZUL 406 = tamaño de texto
+    if (key === 403) {
+      if (screen === 'main') toggleSearch();
+      e.preventDefault();
+      return;
+    }
+    if (key === 404 || key === 405) {
+      if (screen === 'main' && curChat) {
+        var want = (key === 404) ? 'audio' : 'pdf';
+        filterType = (filterType === want) ? 'all' : want;
+        renderGrid(messages, true, messages.length >= 100, '');
+        toast(t(filterType === 'all' ? 'filter_all' : (want === 'audio' ? 'filter_music' : 'filter_pdfs')));
+      } else {
+        toast(t('open_chat_first'));
+      }
+      e.preventDefault();
+      return;
+    }
+    if (key === 406) {
+      cycleTextSize();
+      e.preventDefault();
+      return;
+    }
+
     if (screen === 'player') {
       showPlayerControls();
       if (key === 37) { seekBy(-10); e.preventDefault(); }
@@ -892,11 +1092,11 @@
     }
     if (screen === 'photo') {
       if (pdfMsgId) {
-        if (key === 37) { pdfPage = Math.max(1, pdfPage - 1); renderPdf(); e.preventDefault(); }
-        else if (key === 39) { pdfPage = Math.min(pdfPages, pdfPage + 1); renderPdf(); e.preventDefault(); }
+        if (key === 37) { goPdfPage(-1); e.preventDefault(); }
+        else if (key === 39) { goPdfPage(1); e.preventDefault(); }
         else if (key === 38) { scrollPdf(-250); e.preventDefault(); }
         else if (key === 40) { scrollPdf(250); e.preventDefault(); }
-        else if (key === 10009 || key === 27 || key === 13) { pdfMsgId = null; setView('main'); focusFirst(); e.preventDefault(); }
+        else if (key === 10009 || key === 27 || key === 13) { pdfMsgId = null; cleanupPdf(); setView('main'); focusFirst(); e.preventDefault(); }
         return;
       }
       if (key === 37) { nextPhoto(-1); e.preventDefault(); }
@@ -947,6 +1147,7 @@
   function init() {
     try { var savedLang = localStorage.getItem('tg_lang'); if (savedLang === 'en' || savedLang === 'es') LANG = savedLang; } catch (e) {}
     loadProgress();
+    loadUiScale();
     $('setup-btn').addEventListener('click', doSetup);
     $('setup-url').addEventListener('keydown', function (e) { if (e.keyCode === 13) doSetup(); });
     $('pass-btn').addEventListener('click', doPassword);
@@ -969,8 +1170,11 @@
       setLang(LANG === 'es' ? 'en' : 'es');
       reRender();
     });
+    $('btn-size').addEventListener('click', cycleTextSize);
+    $('btn-pdf-prev').addEventListener('click', function () { goPdfPage(-1); });
+    $('btn-pdf-next').addEventListener('click', function () { goPdfPage(1); });
     $('btn-player-back').addEventListener('click', function () { saveCurProgress(); exitPlayer(); });
-    $('btn-photo-back').addEventListener('click', function () { pdfMsgId = null; setView('main'); focusFirst(); });
+    $('btn-photo-back').addEventListener('click', function () { pdfMsgId = null; cleanupPdf(); setView('main'); focusFirst(); });
     $('btn-rewind').addEventListener('click', function () { seekBy(-10); });
     $('btn-forward').addEventListener('click', function () { seekBy(10); });
     $('btn-playpause').addEventListener('click', togglePlay);

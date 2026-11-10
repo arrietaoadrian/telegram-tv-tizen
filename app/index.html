@@ -48,6 +48,7 @@
         <button id="btn-search-toggle" class="btn btn-icon focusable" title="Buscar" aria-label="Buscar">&#128269;</button>
         <button id="btn-archive" class="btn focusable" data-i18n="archived">Archivados</button>
         <button id="btn-refresh" class="btn focusable" data-i18n="refresh">Recargar</button>
+        <button id="btn-size" class="btn btn-icon focusable" title="Tamaño de texto">A+</button>
         <button id="btn-lang" class="btn focusable">English</button>
         <button id="btn-logout" class="btn focusable" data-i18n="logout">Salir</button>
       </div>
@@ -76,15 +77,25 @@
     </div>
 
     <div id="view-photo" class="view hidden">
-      <div id="photo-scroll"><img id="photo-img" src="" alt=""></div>
+      <div id="photo-scroll">
+        <img id="photo-img" src="" alt="">
+        <canvas id="pdf-canvas" class="hidden"></canvas>
+      </div>
       <div class="player-top">
         <button id="btn-photo-back" class="btn" data-i18n="back">Volver</button>
         <div id="photo-caption"></div>
       </div>
+      <div id="pdf-bar" class="pdf-bar hidden">
+        <button id="btn-pdf-prev" class="btn" aria-label="Previous page">&#8592;</button>
+        <div id="pdf-pageinfo">1 / 1</div>
+        <button id="btn-pdf-next" class="btn" aria-label="Next page">&#8594;</button>
+      </div>
     </div>
 
+    <div id="toast" class="toast hidden"></div>
     <div id="loading" class="hidden" data-i18n="loading">Cargando...</div>
   </div>
+  <script src="js/pdf/pdf.min.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>
