@@ -4,6 +4,17 @@ A Telegram client for your TV — channels, videos, music, photos and PDF readin
 
 This is the **Samsung Tizen** port of [telegram-webos-3.x](https://github.com/arrietaoadrian/telegram-webos-3.x). Same app, same backend, packaged as a `.wgt` for Samsung TVs (2021+).
 
+## Download
+
+Latest release: **[v0.6.0](https://github.com/arrietaoadrian/telegram-tv-tizen/releases/tag/v0.6.0)**
+
+- Direct package: [`com.telegramtv.app_0.6.0.wgt`](https://github.com/arrietaoadrian/telegram-tv-tizen/releases/download/v0.6.0/com.telegramtv.app_0.6.0.wgt)
+- Install it with **Apps2Samsung** (Samsung + Partner signing) or Tizen Studio.
+
+## What's new in 0.6.0
+
+Streaming video with real seeking (HTTP Range + `+faststart`), Samsung color-button shortcuts, 100/115/130% text size, a local pdf.js reader with server fallback, and smoother 4K/Tizen transitions. See the [release notes](https://github.com/arrietaoadrian/telegram-tv-tizen/releases/tag/v0.6.0) for details.
+
 ## How it works
 
 Two pieces:
