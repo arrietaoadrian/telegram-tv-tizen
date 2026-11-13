@@ -1,1259 +1,2269 @@
+/* 界面和遥控器。三屏：登录（扫码）、主页（左边来源、右边视频网格）、播放器。
+ *
+ * 用法设计（用户 2026-10-01）：电视上不打字 —— 在手机上搜到片子，转发到「收藏夹」（或自己建的群），电视上点开就放。
+ * 所以启动直接进上次看的来源，焦点落在最近看过的那一条上。 */
 (function () {
-  'use strict';
+    "use strict";
 
-  // ===== Translations (ES / EN) =====
-  var I18N = {
-    es: {
-      setup_sub: 'Conecta el TV con el servidor que corre en tu teléfono.',
-      setup_hint: 'Esta dirección aparece en Termux (celular) al ejecutar <b>node server.js</b>. Es la IP de tu teléfono en el Wi-Fi + el puerto 8080.<br>Ejemplo: <b>http://192.168.1.50:8080</b>',
-      connect: 'Conectar',
-      enter_server: 'Ingresa la dirección del servidor.',
-      sign_in: 'Iniciar sesión',
-      scan_qr: 'Escanea este QR con Telegram:<br>Configuración → Dispositivos → Escanear QR',
-      loading_qr: 'Cargando QR...',
-      password: 'Contraseña',
-      two_step: 'Tu cuenta tiene verificación en dos pasos',
-      password_ph: 'Contraseña de Telegram',
-      submit: 'Enviar',
-      enter_password: 'Ingresa tu contraseña.',
-      verifying: 'Verificando...',
-      channels: 'Canales',
-      archived: 'Archivados',
-      refresh: 'Recargar',
-      logout: 'Salir',
-      search_ph: 'Buscar en este chat...',
-      search_ph_all: 'Buscar canales...',
-      search: 'Buscar',
-      lang_switch: 'English',
-      no_archived: 'No hay chats archivados.',
-      no_channels: 'No se encontraron canales.',
-      saved_messages: 'Mensajes guardados',
-      your_saved: 'Tus mensajes guardados',
-      channel: 'Canal',
-      back_channels: 'Volver a canales',
-      back_all: 'Volver a todos',
-      no_media: 'No hay medios en este chat.',
-      no_results: 'Sin resultados para "',
-      photo: 'Foto',
-      song: 'Canción',
-      video: 'Video',
-      load_more: 'Cargar más',
-      back: 'Volver',
-      pause: 'Pausa',
-      play: 'Reproducir',
-      converting_mkv: 'Convirtiendo MKV (puede tardar)...',
-      loading_video: 'Cargando video (si es HEVC/H.265 se convertirá, puede tardar)...',
-      could_not_play: 'No se pudo reproducir. Si es MKV, verifica tener ffmpeg y que sea H.264/AAC.',
-      err_codec: 'Codec no soportado (el video podría ser HEVC/H.265)',
-      err_network: 'Error de red',
-      subtitles: 'Subtítulos',
-      loading_music: 'Cargando música...',
-      loading: 'Cargando...',
-      no_connection: 'Sin conexión',
-      no_connection_server: 'Sin conexión con el servidor (',
-      error: 'Error: ',
-      line: 'línea',
-      filter_all: 'Todos',
-      filter_videos: 'Videos',
-      filter_mkv: 'MKV',
-      filter_photos: 'Fotos',
-      filter_music: 'Música',
-      filter_pdfs: 'PDFs',
-      pdf: 'PDF',
-      pdf_loading: 'Cargando PDF...',
-      pdf_rendering: 'Renderizando...',
-      pdf_fallback: 'pdf.js falló; usando el servidor',
-      open_chat_first: 'Abre un chat primero',
-      text_size: 'Texto',
-      months: ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic']
-    },
-    en: {
-      setup_sub: 'Connect the TV to the server running on your phone.',
-      setup_hint: 'This address appears in Termux (phone) when you run <b>node server.js</b>. It\'s your phone\'s Wi-Fi IP + port 8080.<br>Example: <b>http://192.168.1.50:8080</b>',
-      connect: 'Connect',
-      enter_server: 'Enter the server address.',
-      sign_in: 'Sign in',
-      scan_qr: 'Scan this QR with Telegram:<br>Settings → Devices → Scan QR',
-      loading_qr: 'Loading QR...',
-      password: 'Password',
-      two_step: 'Your account has two-step verification',
-      password_ph: 'Telegram password',
-      submit: 'Submit',
-      enter_password: 'Enter your password.',
-      verifying: 'Verifying...',
-      channels: 'Channels',
-      archived: 'Archived',
-      refresh: 'Refresh',
-      logout: 'Log out',
-      search_ph: 'Search in this chat...',
-      search_ph_all: 'Search channels...',
-      search: 'Search',
-      lang_switch: 'Español',
-      no_archived: 'No archived chats.',
-      no_channels: 'No channels found.',
-      saved_messages: 'Saved Messages',
-      your_saved: 'Your saved messages',
-      channel: 'Channel',
-      back_channels: 'Back to channels',
-      back_all: 'Back to all',
-      no_media: 'No media in this chat.',
-      no_results: 'No results for "',
-      photo: 'Photo',
-      song: 'Song',
-      video: 'Video',
-      load_more: 'Load more',
-      back: 'Back',
-      pause: 'Pause',
-      play: 'Play',
-      converting_mkv: 'Converting MKV (may take a while)...',
-      loading_video: 'Loading video (if HEVC/H.265 it will convert, may take a while)...',
-      could_not_play: 'Could not play. If it is MKV, make sure ffmpeg is installed and it is H.264/AAC.',
-      err_codec: 'Unsupported codec (the video might be HEVC/H.265)',
-      err_network: 'Network error',
-      subtitles: 'Subtitles',
-      loading_music: 'Loading music...',
-      loading: 'Loading...',
-      no_connection: 'No connection',
-      no_connection_server: 'No connection to the server (',
-      error: 'Error: ',
-      line: 'line',
-      filter_all: 'All',
-      filter_videos: 'Videos',
-      filter_mkv: 'MKV',
-      filter_photos: 'Photos',
-      filter_music: 'Music',
-      filter_pdfs: 'PDFs',
-      pdf: 'PDF',
-      pdf_loading: 'Loading PDF...',
-      pdf_rendering: 'Rendering...',
-      pdf_fallback: 'pdf.js failed; using server render',
-      open_chat_first: 'Open a chat first',
-      text_size: 'Text',
-      months: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-    }
-  };
-
-  var LANG = 'es';
-  function t(key) {
-    if (I18N[LANG] && I18N[LANG][key] !== undefined) return I18N[LANG][key];
-    if (I18N.en && I18N.en[key] !== undefined) return I18N.en[key];
-    return key;
-  }
-  function setLang(lang) {
-    LANG = lang;
-    try { localStorage.setItem('tg_lang', LANG); } catch (e) {}
-    applyI18n();
-  }
-  function applyI18n() {
-    var els = document.querySelectorAll('[data-i18n]');
-    for (var i = 0; i < els.length; i++) els[i].innerHTML = t(els[i].getAttribute('data-i18n'));
-    var phs = document.querySelectorAll('[data-i18n-ph]');
-    for (var j = 0; j < phs.length; j++) phs[j].setAttribute('placeholder', t(phs[j].getAttribute('data-i18n-ph')));
-    if (curChat === null) $('search-input').setAttribute('placeholder', t('search_ph_all'));
-    var lb = $('btn-lang');
-    if (lb) lb.textContent = t('lang_switch');
-  }
-
-  var BACKEND = null;
-  var screen = 'setup';
-  var curChat = null, curClassName = null, curChatTitle = '';
-  var lastList = 'channels';
-  var pollTimer = null, qrTimer = null;
-  var messages = [];
-  var offsetId = 0;
-  var progress = {};
-  var subList = [];
-  var activeSub = null;
-  var photoIndex = 0;
-  var photoList = [];
-  var photoZoom = 1;
-  var pdfMsgId = null;
-  var pdfPage = 1;
-  var pdfPages = 1;
-  var playingType = 'video';
-  var curMsgId = null;
-  var filterType = 'all';
-  var controlsTimer = null;
-  var videoUrl = '';
-  var pendingResume = 0;
-  var didSeek = false;
-  var videoRetry = 0;
-  var videoLoadTimer = null;
-  var curMediaChat = null;
-  var curMediaClass = null;
-  var pdfDoc = null;
-  var pdfTask = null;
-  var pdfRenderTask = null;
-  var pdfUsingJs = false;
-  var toastTimer = null;
-  var uiScaleIdx = 0;
-  var UI_SCALES = [1, 1.15, 1.3];
-
-  function $(id) { return document.getElementById(id); }
-  function esc(s) {
-    if (s === null || s === undefined) return '';
-    s = String(s);
-    return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-  }
-  function enc(s) { return encodeURIComponent(s); }
-  function findUp(el, attr) {
-    while (el && el !== document) {
-      if (el.getAttribute && el.getAttribute(attr) !== null && el.getAttribute(attr) !== '') return el;
-      el = el.parentNode;
-    }
-    return null;
-  }
-  function fmtDur(s) {
-    s = Math.floor(s || 0);
-    var h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), ss = s % 60;
-    if (h > 0) return h + ':' + (m < 10 ? '0' : '') + m + ':' + (ss < 10 ? '0' : '') + ss;
-    return m + ':' + (ss < 10 ? '0' : '') + ss;
-  }
-  function fmtSize(b) {
-    b = b || 0;
-    if (b >= 1073741824) return (b / 1073741824).toFixed(1) + ' GB';
-    if (b >= 1048576) return (b / 1048576).toFixed(1) + ' MB';
-    if (b >= 1024) return Math.round(b / 1024) + ' KB';
-    return b + ' B';
-  }
-  function fmtDate(ts) {
-    if (!ts) return '';
-    var d = new Date(ts * 1000);
-    if (isNaN(d.getTime())) return '';
-    var months = t('months');
-    var hh = d.getHours(), mm = d.getMinutes();
-    return d.getDate() + ' ' + months[d.getMonth()] + ' ' + d.getFullYear() + ' · ' + (hh < 10 ? '0' : '') + hh + ':' + (mm < 10 ? '0' : '') + mm;
-  }
-
-  // ===== Playback progress (localStorage) =====
-  function loadProgress() {
-    try {
-      var s = localStorage.getItem('tg_progress');
-      progress = s ? JSON.parse(s) : {};
-    } catch (e) { progress = {}; }
-  }
-  function saveProgress() {
-    try { localStorage.setItem('tg_progress', JSON.stringify(progress)); } catch (e) {}
-  }
-  function progKey(chatId, msgId) { return chatId + ':' + msgId; }
-
-  function showLoading(on) { $('loading').className = on ? '' : 'hidden'; }
-
-  // ===== Toast (avisos rápidos en pantalla) =====
-  function toast(msg, ms) {
-    var el = $('toast');
-    if (!el) return;
-    el.textContent = msg;
-    el.classList.remove('hidden');
-    el.classList.remove('show');
-    // Fuerza reflow para reiniciar la animación si ya estaba visible.
-    void el.offsetWidth;
-    el.classList.add('show');
-    if (toastTimer) clearTimeout(toastTimer);
-    toastTimer = setTimeout(function () {
-      el.classList.remove('show');
-      toastTimer = setTimeout(function () { el.classList.add('hidden'); }, 250);
-    }, ms || 2200);
-  }
-
-  // ===== Tamaño de texto/UI (zoom CSS, persistido) =====
-  function loadUiScale() {
-    try {
-      var v = parseFloat(localStorage.getItem('tg_uiscale'));
-      if (!isNaN(v)) {
-        var best = 0, bestDiff = Infinity;
-        for (var i = 0; i < UI_SCALES.length; i++) {
-          var d = Math.abs(UI_SCALES[i] - v);
-          if (d < bestDiff) { bestDiff = d; best = i; }
-        }
-        uiScaleIdx = best;
-      }
-    } catch (e) {}
-    applyUiScale();
-  }
-  function applyUiScale() {
-    var s = UI_SCALES[uiScaleIdx];
-    var app = $('app');
-    if (!app) return;
-    // zoom agranda toda la UI; width/height 100% se resuelven en el espacio
-    // zoomificado, así que la app sigue llenando la pantalla exactamente.
-    app.style.zoom = s;
-    app.style.width = '100%';
-    app.style.height = '100%';
-    try { localStorage.setItem('tg_uiscale', String(s)); } catch (e) {}
-  }
-  function cycleTextSize() {
-    uiScaleIdx = (uiScaleIdx + 1) % UI_SCALES.length;
-    applyUiScale();
-    toast(t('text_size') + ': ' + Math.round(UI_SCALES[uiScaleIdx] * 100) + '%');
-  }
-
-  function setView(name) {
-    $('view-setup').className = 'view' + (name === 'setup' ? '' : ' hidden');
-    $('view-login').className = 'view' + (name === 'login' ? '' : ' hidden');
-    $('view-pass').className = 'view' + (name === 'pass' ? '' : ' hidden');
-    $('view-main').className = 'view' + (name === 'main' ? '' : ' hidden');
-    $('view-player').className = 'view' + (name === 'player' ? '' : ' hidden');
-    $('view-photo').className = 'view' + (name === 'photo' ? '' : ' hidden');
-    screen = name;
-  }
-
-  function setTopbar(opts) {
-    $('main-title').textContent = opts.title || t('channels');
-    $('btn-archive').className = 'btn focusable' + (opts.showArchive ? '' : ' hidden');
-    if (opts.archiveLabel) $('btn-archive').textContent = opts.archiveLabel;
-    $('search-input').value = '';
-    $('search-input').placeholder = t(curChat ? 'search_ph' : 'search_ph_all');
-  }
-
-  function stopPolling() {
-    if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
-    if (qrTimer) { clearInterval(qrTimer); qrTimer = null; }
-  }
-
-  function api(path, method, body, cb) {
-    var xhr = new XMLHttpRequest();
-    var m = method || 'GET';
-    xhr.open(m, BACKEND + path, true);
-    if (body) xhr.setRequestHeader('Content-Type', 'application/json');
-    xhr.onreadystatechange = function () {
-      if (xhr.readyState === 4) {
-        var data = null;
-        try { data = JSON.parse(xhr.responseText); } catch (e) {}
-        if (xhr.status >= 200 && xhr.status < 300) cb(null, data);
-        else cb(new Error('HTTP ' + xhr.status + (data && data.error ? ' ' + data.error : '')), data);
-      }
+    var $ = function (id) { return document.getElementById(id); };
+    var video = $("v");
+    var COLS = 3, CARD_W = 480, CARD_H = 396, GAP_X = 30, PITCH_Y = 416, LEFT = 390, TOP = 70, VIEW_H = 1030, SRC_H = 72;
+    /* La barra de canales mide 340 px y queda fija; las tarjetas empiezan en LEFT (340 + margen). */
+    var S = {
+        screen: "boot", zone: "grid",
+        sources: [], railFocus: 0,
+        src: null, items: [], view: [], filter: "all", filterZone: false, filterFocus: 0,
+        next: undefined, total: 0, loading: false, gen: 0, focus: 0,
+        thumbs: {}, thumbQ: [], thumbBusy: 0,
+        playing: null, pending: null, pendTimer: 0, ovTimer: 0, backAt: 0, logoutAt: 0
     };
-    xhr.onerror = function () { cb(new Error(t('no_connection_server') + BACKEND + ')'), null); };
-    try { xhr.send(body ? JSON.stringify(body) : null); } catch (e) { cb(e, null); }
-  }
+    function R(s) { Log.report("app", s); }
+    /* 诊断日志（diag.js）：先记一行「新的一次启动」，之后每一行日志都进那一圈 */
+    Diag.init({ report: Log.report });
+    I18n.apply();
+    function errStr(e) { return (e && (e.message || e.text || e.name)) || String(e); }
 
-  function apiText(path, cb) {
-    var xhr = new XMLHttpRequest();
-    xhr.open('GET', BACKEND + path, true);
-    xhr.onreadystatechange = function () {
-      if (xhr.readyState === 4) {
-        if (xhr.status >= 200 && xhr.status < 300) cb(null, xhr.responseText);
-        else cb(new Error('HTTP ' + xhr.status), null);
-      }
-    };
-    xhr.onerror = function () { cb(new Error(t('no_connection')), null); };
-    xhr.send(null);
-  }
-
-  function logToServer(msg) {
     try {
-      var xhr = new XMLHttpRequest();
-      xhr.open('POST', BACKEND + '/api/log', true);
-      xhr.setRequestHeader('Content-Type', 'application/json');
-      xhr.send(JSON.stringify({ message: msg }));
+        ["MediaPlayPause", "MediaPlay", "MediaPause", "MediaStop", "MediaFastForward", "MediaRewind", "MediaTrackPrevious", "MediaTrackNext"].forEach(function (k) {
+            tizen.tvinputdevice.registerKey(k);
+        });
     } catch (e) {}
-  }
 
-  // ===== Setup =====
-  function doSetup() {
-    var u = $('setup-url').value.trim().replace(/\/+$/, '');
-    if (!u) { $('setup-msg').textContent = t('enter_server'); return; }
-    BACKEND = u;
-    try { localStorage.setItem('tg_backend', BACKEND); } catch (e) {}
-    $('setup-msg').textContent = '';
-    showLoading(true);
-    api('/api/status', 'GET', null, function (err, data) {
-      showLoading(false);
-      if (err) { $('setup-msg').textContent = err.message; return; }
-      if (data.loggedIn) showChannels(); else showLogin();
-    });
-  }
+    /* ---------- 小工具 ---------- */
 
-  // ===== Login =====
-  function showLogin() {
-    setView('login');
-    stopPolling();
-    $('login-msg').textContent = t('loading_qr');
-    api('/api/login', 'POST', null, function (err) {
-      if (err) { $('login-msg').textContent = err.message; return; }
-      $('login-msg').textContent = '';
-      refreshQr();
-      qrTimer = setInterval(refreshQr, 5000);
-      pollLogin();
-    });
-  }
-  function refreshQr() { if (BACKEND) $('qr-img').src = BACKEND + '/api/qr.png?t=' + Date.now(); }
-  function pollLogin() {
-    api('/api/status', 'GET', null, function (err, data) {
-      if (err) { $('login-msg').textContent = err.message; pollTimer = setTimeout(pollLogin, 4000); return; }
-      if (data.loggedIn) { stopPolling(); showChannels(); return; }
-      if (data.needPassword) { stopPolling(); setView('pass'); $('pass-input').focus(); return; }
-      if (data.error) { $('login-msg').textContent = data.error; }
-      pollTimer = setTimeout(pollLogin, 2000);
-    });
-  }
-  function doPassword() {
-    var pw = $('pass-input').value;
-    if (!pw) { $('pass-msg').textContent = t('enter_password'); return; }
-    $('pass-msg').textContent = t('verifying');
-    api('/api/password', 'POST', { password: pw }, function (err) {
-      if (err) { $('pass-msg').textContent = err.message; return; }
-      $('pass-msg').textContent = '';
-      $('pass-input').value = '';
-      showLogin();
-    });
-  }
-
-  // ===== Channels / Archived =====
-  function showChannels() {
-    lastList = 'channels';
-    curChat = null;
-    setView('main');
-    setTopbar({ title: t('channels'), showArchive: true, archiveLabel: t('archived') });
-    loadDialogs(false);
-  }
-  function showArchived() {
-    lastList = 'archived';
-    curChat = null;
-    setView('main');
-    setTopbar({ title: t('archived'), showArchive: true, archiveLabel: t('channels') });
-    loadDialogs(true);
-  }
-  function loadDialogs(archivedOnly) {
-    showLoading(true);
-    api('/api/dialogs', 'GET', null, function (err, data) {
-      showLoading(false);
-      if (err) { $('main-content').innerHTML = '<div class="empty">' + esc(err.message) + '</div>'; return; }
-      var list = archivedOnly ? (data.archived || []) : (data.dialogs || []);
-      if (!list.length) {
-        $('main-content').innerHTML = '<div class="empty">' + (archivedOnly ? t('no_archived') : t('no_channels')) + '</div>';
-        return;
-      }
-      var html = '';
-      for (var i = 0; i < list.length; i++) {
-        var c = list[i];
-        var initial = (c.title || '?').charAt(0).toUpperCase();
-        var avatarSrc = BACKEND + '/api/avatar?chat=' + enc(c.id) + '&className=' + enc(c.className);
-        var savedCls = c.saved ? ' saved' : '';
-        var title = c.saved ? t('saved_messages') : (c.title || c.username || c.id);
-        html += '<div class="row focusable' + savedCls + '" tabindex="0" data-action="chat" data-chat="' + esc(c.id) + '" data-class="' + esc(c.className) + '" data-title="' + esc(title) + '">'
-          + '<div class="avatar"><span class="letter">' + esc(initial) + '</span><img src="' + esc(avatarSrc) + '" onerror="this.remove()" alt=""></div>'
-          + '<div><div class="row-title">' + esc(title) + '</div>'
-          + '<div class="row-sub">' + (c.saved ? t('your_saved') : (c.username ? '@' + esc(c.username) : t('channel'))) + '</div></div></div>';
-      }
-      $('main-content').innerHTML = html;
-      focusFirst();
-    });
-  }
-
-  // ===== Chat (messages) =====
-  function openChat(chat, className, title) {
-    curChat = chat;
-    curClassName = className;
-    curChatTitle = title;
-    messages = [];
-    offsetId = 0;
-    subList = [];
-    activeSub = null;
-    filterType = 'all';
-    setView('main');
-    setTopbar({ title: title || t('channels'), showArchive: false });
-    loadMessages('');
-  }
-
-  function filterBar() {
-    var items = [
-      ['all', 'filter_all'],
-      ['video', 'filter_videos'],
-      ['video_file', 'filter_mkv'],
-      ['photo', 'filter_photos'],
-      ['audio', 'filter_music'],
-      ['pdf', 'filter_pdfs']
-    ];
-    var h = '<div class="tabs">';
-    for (var i = 0; i < items.length; i++) {
-      var cls = 'tab focusable' + (filterType === items[i][0] ? ' active' : '');
-      h += '<button class="' + cls + '" data-action="filter" data-filter="' + items[i][0] + '">' + t(items[i][1]) + '</button>';
+    function fmtTime(s) {
+        s = Math.max(0, Math.floor(s || 0));
+        var h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, x = s % 60;
+        return (h ? h + ":" + (m < 10 ? "0" : "") : "") + m + ":" + (x < 10 ? "0" : "") + x;
     }
-    h += '</div>';
-    return h;
-  }
+    function fmtSize(b) { return b >= 1073741824 ? (b / 1073741824).toFixed(1) + " GB" : Math.round(b / 1048576) + " MB"; }
+    function fmtDate(d) { return I18n.date(d); }
+    function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;" }[c]; }); }
 
-  function renderGrid(list, showBack, showLoadMore, query) {
-    var showFilters = showBack && !query;
-    if (showFilters && filterType !== 'all') {
-      var filtered = [];
-      for (var fi = 0; fi < list.length; fi++) {
-        if (list[fi].type === filterType) filtered.push(list[fi]);
-      }
-      list = filtered;
+    var toastTimer = 0;
+    function toast(msg, ms) {
+        var t = $("toast");
+        t.innerHTML = "<span>" + esc(msg) + "</span>";
+        t.style.display = "block";
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(function () { t.style.display = "none"; }, ms || 2500);
     }
-    var html = '';
-    if (showBack) {
-      html += '<div class="row focusable" tabindex="0" data-action="back-list"><div class="avatar" style="background:#444"><span class="letter">&#8592;</span></div><div><div class="row-title">' + (query ? t('back_all') : t('back_channels')) + '</div></div></div>';
+
+    /* ---------- 启动 ---------- */
+
+    /* 启动走不下去：借扫码登录的面板写原因。右边二维码那块没有码就是一块白（「连不上 Telegram」以前也是这样），藏起来 */
+    function bootFail(title, body) {
+        $("home").classList.add("hide");
+        $("panel").classList.add("on");
+        $("qr").style.display = "none";
+        $("how").innerHTML = "<div style='font-size:48px'>" + title + "</div><div style='font-size:30px;color:#999;margin-top:20px'>" + body + "</div>" + reportHtml(300);
+        S.screen = "bootfail";
     }
-    if (showFilters) {
-      html += filterBar();
+
+    /* 出错的地方都告诉观众可以到 GitHub 报：只看到一句报错，观众多半就不用了。码里是开好的新 issue，正文填着
+     * 电视编号和版本 —— 出了什么错不填：诊断日志开着时那份已经自动传了，按编号找得到；码也要短，长了电视上一格太小，沙发上扫不出来。
+     * mtcute 没加载起来时没有画码的 TGLib，只写地址 */
+    var ISSUES = "https://github.com/titlog/telegram-tizen/issues";
+    function issueUrl() {
+        var b = Boot.info(), tz = /Tizen (\d+(\.\d+)?)/.exec(navigator.userAgent);
+        var body = "TV code: " + Diag.status().device + " (" + (b.running || b.packaged) + (tz ? ", Tizen " + tz[1] : "") + ")\n\nWhat happened:\n";
+        return ISSUES + "/new?body=" + encodeURIComponent(body);
     }
-    if (!list.length) {
-      html += '<div class="empty">' + (query ? t('no_results') + esc(query) + '".' : t('no_media')) + '</div>';
-    } else {
-      html += '<div class="grid">';
-      for (var i = 0; i < list.length; i++) {
-        var v = list[i];
-        var cap = v.caption ? v.caption.replace(/\s+/g, ' ').substring(0, 90) : '';
-        var thumb = BACKEND + '/api/thumb?chat=' + enc(v.chatId || curChat) + '&className=' + enc(v.className || curClassName) + '&msgId=' + v.id;
-        var chatLabel = v.chatTitle ? '<div class="vmeta">' + esc(v.chatTitle) + '</div>' : '';
-        var progBar = '';
-        var k = progKey(v.chatId || curChat, v.id);
-        if ((v.type === 'video' || v.type === 'video_file') && progress[k] && v.duration) {
-          var pct = Math.min(100, (progress[k] / v.duration) * 100);
-          progBar = '<div class="vprogress"><div class="vprogress-fill" style="width:' + pct + '%"></div></div>';
+    function reportQr() { return typeof TGLib !== "undefined" && TGLib.qrSvg ? TGLib.qrSvg(issueUrl(), 4) : ""; }
+    function reportHtml(size) {
+        var st = Diag.status(), qr = reportQr();
+        var logs = st.enabled && st.configured ? "<br>" + T("诊断日志会自动传给开发者，issue 里带着这台电视的编号 {0}，对得上。", st.device) : "";
+        return "<div class='report'>" + (qr ? "<div class='rq' style='width:" + size + "px;height:" + size + "px'>" + qr + "</div>" : "") +
+            "<div class='rt'>" + (qr ? T("反复出现的话，用手机扫这个码到 GitHub 留个 issue，开发者会尽快想办法解决。") :
+                                       T("反复出现的话，到 GitHub 留个 issue，开发者会尽快想办法解决：") + "<br><b>github.com/titlog/telegram-tizen/issues</b>") +
+            logs + "</div></div>";
+    }
+
+    async function boot() {
+        var t0 = performance.now();
+        /* 装在安装包里的 mtcute（js/tg.bundle.js）在这台电视上跑不起来。它不随自动更新下发：1.1.2 及以前的打包目标太新，Tizen 6.0
+         * 解析不了，那几台照样自动更新到新的代码，mtcute 还是旧的，屏幕上却是「连不上 Telegram，检查网络后按确认重试」，看着像网络问题。
+         * 重试、换网络都没用，只有重装一次才好，就照直说。 */
+        /* 包解析得了、却是 1.1.3 以前打的：Chromium 116 以前的引擎上没有 AbortSignal.any（Chromium 100 以前还没有 throwIfAborted），
+         * 新包的 compat.js 在主线程和后台线程都补上了，旧包没有。2026-10-23 一台 Tizen 8.0 装的 1.1.2、跑的 1.1.5：连得上、登得进、
+         * 列得出视频，每一次下载都是「AbortSignal.any is not a function」，90 秒没画面，屏幕上只说放不了。主线程这里缺，就是包是旧的。 */
+        var oldPack = typeof TGLib === "undefined" ? "TGLib 不存在" :
+            typeof AbortSignal !== "undefined" && typeof AbortSignal.any !== "function" ? "这台电视没有 AbortSignal.any，包里也没补" :
+            typeof AbortSignal !== "undefined" && typeof AbortSignal.prototype.throwIfAborted !== "function" ? "这台电视没有 AbortSignal.throwIfAborted，包里也没补" : "";
+        if (oldPack) {
+            var b = Boot.info();
+            R("安装包里的 mtcute 用不了（" + oldPack + "；装的 " + b.packaged + "，跑的 " + (b.running || b.packaged) + "），请观众重装");
+            Diag.incident("mtcute 没加载起来，要重装");
+            bootFail(T("要重新安装一次"), T("这台电视上装的版本打不开，自动更新换不了它。用 Apps2Samsung 再装一次最新版就好。") + "<br>" + T("按返回键退出"));
+            return;
         }
-        var dateStr = fmtDate(v.date);
-        if (v.type === 'photo') {
-          html += '<div class="vcard focusable" tabindex="0" data-action="photo" data-msg="' + v.id + '">'
-            + '<div class="vthumb"><img src="' + esc(thumb) + '" alt=""><span class="tag">' + t('photo') + '</span></div>'
-            + '<div class="vtitle">' + (cap || (t('photo') + ' ' + (i + 1))) + '</div>'
-            + chatLabel + '<div class="vmeta">' + dateStr + '</div></div>';
-        } else if (v.type === 'audio') {
-          html += '<div class="vcard focusable" tabindex="0" data-action="audio" data-msg="' + v.id + '">'
-            + '<div class="vthumb contain"><span class="vplay" style="display:none">&#9835;</span>'
-            + '<img src="' + esc(thumb) + '" onerror="this.style.display=\'none\';this.parentNode.getElementsByClassName(\'vplay\')[0].style.display=\'block\';" alt="">'
-            + '<span class="tag">' + fmtDur(v.duration) + '</span></div>'
-            + '<div class="vtitle">' + (cap || (t('song') + ' ' + (i + 1))) + '</div>'
-            + chatLabel + '<div class="vmeta">' + dateStr + ' · ' + fmtSize(v.size) + '</div></div>';
-        } else if (v.type === 'pdf') {
-          var pdfThumb = BACKEND + '/api/pdf?chat=' + enc(v.chatId || curChat) + '&className=' + enc(v.className || curClassName) + '&msgId=' + v.id + '&page=1&thumb=1';
-          html += '<div class="vcard focusable" tabindex="0" data-action="pdf" data-msg="' + v.id + '">'
-            + '<div class="vthumb contain"><span class="vplay" style="display:none;font-size:14px;line-height:44px;">PDF</span>'
-            + '<img src="' + esc(pdfThumb) + '" onerror="this.style.display=\'none\';this.parentNode.getElementsByClassName(\'vplay\')[0].style.display=\'block\';" alt="">'
-            + '<span class="tag">PDF</span></div>'
-            + '<div class="vtitle">' + (cap || (t('pdf') + ' ' + (i + 1))) + '</div>'
-            + chatLabel + '<div class="vmeta">' + dateStr + ' · ' + fmtSize(v.size) + '</div></div>';
+        var dropped = await Accounts.cleanup();
+        if (dropped.length) { R("退出的账号留下的库：" + dropped.join("，")); }
+        /* 包里没带 API ID / Hash（deploy.sh --noapi），又没填过：先填（apikey.js）。发布包和从源码装的都带着，平时不会走到这里 */
+        if (!ApiKey.get()) {
+            R("包里没带 API ID / Hash，也没填过，等用户在电视上填");
+            await askApi("", null);
+            t0 = performance.now();
+        }
+        var api = ApiKey.get();
+        try {
+            await TG.init();
+        } catch (e) {
+            R("连不上 Telegram：" + errStr(e));
+            Diag.incident("连不上 Telegram：" + errStr(e));
+            bootFail(T("连不上 Telegram"), esc(errStr(e)) + "<br>" + T("检查网络后按确认重试"));
+            return;
+        }
+        R("连上 Telegram " + Math.round(performance.now() - t0) + "ms，mtcute 在 " + TG.mode() + (Boot.info().mtcute === "legacy" ? "（老电视那份：大数用 JSBI）" : "") + "；界面 " + I18n.lang + "（" + I18n.why + "，系统语言 " + I18n.sys + "）" +
+          "；API ID 是" + (api.from === "build" ? "安装包里带的" : "电视上填的"));
+        var acct = Accounts.active(), me = await TG.me(), fresh = false;
+        if (!me) {
+            try { await login(); fresh = true; }
+            catch (e) {
+                /* Telegram 不认这组（连接、getMe 都不验它，扫码这一步才验）：电视上填的 → 带着刚填的回到填写页改；
+                 * 包里带的（被停用了）→ 空着的填写页，填自己申请的。填好了重新来过 */
+                if (!ApiKey.rejected(e)) { throw e; }
+                R("Telegram 不认" + (api.from === "tv" ? "电视上填的" : "安装包里带的") + " API ID / Hash：" + errStr(e) + "，转到填写页");
+                /* 安装包带的那组被拒是所有人的事（多半是被 Telegram 停了）；电视上填错的是这一台的事 */
+                if (api.from === "build") { Diag.incident("安装包带的 API ID 被 Telegram 拒了：" + errStr(e)); }
+                $("panel").classList.remove("on");
+                var why = e.text || errStr(e);
+                await askApi(api.from === "tv" ? T("Telegram 不认这组 API ID / Hash（{0}）。对着 my.telegram.org 核对一下再填。", why) :
+                    T("Telegram 不再接受这个安装包带的 API ID（{0}）。填你自己申请的就能接着用。", why), api.from === "tv" ? api : null);
+                location.reload();
+                return;
+            }
+            me = await TG.me();
+        }
+        /* 刚扫的码是另一个人（这一行原来那人的会话在别处被结束了）：这一行改成扫码的人，原来那人的本地记录删掉，重新加载 */
+        if (fresh && me && Accounts.reassign(acct.id, me)) {
+            R("扫码登录的是另一个人：" + acct.id + " 原来那人的会话已经没了，这一行改成扫码的人（id=" + Diag.priv(me.id) + "），原来那人的本地记录删掉，重新加载");
+            location.reload();
+            return;
+        }
+        /* 认人的判据是 Telegram 答的用户编号，不是「认不认得出一个人」（bilibili 那边就是这么漏过去的）；名字也只从这里来 */
+        var verdict = Accounts.describe(acct.id, me);
+        var dup = Accounts.duplicateOf(acct.id);
+        if (dup) {
+            /* 添加账号时扫的是已经在电视上的那个人：新会话作废、这一行拿掉，切到原来那一行 */
+            R("添加的账号 " + acct.id + " 和 " + dup.id + " 是同一个人（id=" + Diag.priv(dup.userId) + "），作废新会话，切回去");
+            await TG.logout();
+            Accounts.remove(acct.id);
+            Accounts.switchTo(dup.id);
+            Store.once(T("这个账号已经在这台电视上了，切到了它"));
+            location.reload();
+            return;
+        }
+        R("账号：" + Accounts.list().length + " 个，当前 " + acct.id + "（库 " + acct.storage + "，" + Diag.priv(acct.name) + " id=" + Diag.priv(acct.userId) + "），Telegram 答的是 id=" +
+          Diag.priv((me && me.id)) + " —— " + verdict);
+        var once = Store.once();
+        if (once) { toast(once, 4000); }
+        S.screen = "home";
+        $("home").classList.remove("hide");
+        /* 到了主页之后会话没了（手机上结束了这个会话）：以前照常跑、每个请求都 401。重新加载，boot 会因为 getMe 失败回到扫码 */
+        TG.onSignedOut(function (e) {
+            R("这个会话没了（" + errStr(e) + "），重新加载、回到扫码");
+            location.reload();
+        });
+        /* 不要收藏夹（用户 2026-10-01：习惯用自己建的一个群）。上次的来源直接开；第一次用就等探测到第一个有视频的。 */
+        var last = Store.lastSource();
+        if (last) {
+            S.sources = [last];
+            renderRail();
+            if (await openSource(last, { quiet: true }) === "gone") {
+                /* 上次的来源进不去了：像第一次用一样，开第一个有视频的 */
+                R("启动时上次的来源进不去了，改开第一个有视频的");
+                toast(T("上次看的群或频道进不去了，换了一个"), 4000);
+                S.src = null;
+                last = null;
+            } else {
+                R("启动到主页 " + Math.round(performance.now() - t0) + "ms，来源「" + Diag.priv(S.src.title) + "」" + S.items.length + " 个视频");
+            }
         } else {
-          var isMkv = (v.type === 'video_file');
-          var tag = isMkv ? 'MKV · ' + fmtDur(v.duration) : fmtDur(v.duration);
-          html += '<div class="vcard focusable" tabindex="0" data-action="play" data-msg="' + v.id + '">'
-            + '<div class="vthumb"><img src="' + esc(thumb) + '" onerror="this.style.display=\'none\'" alt=""><span class="vplay">&#9654;</span><span class="tag">' + tag + '</span>' + progBar + '</div>'
-            + '<div class="vtitle">' + (cap || (t('video') + ' ' + (i + 1))) + '</div>'
-            + chatLabel + '<div class="vmeta">' + dateStr + ' · ' + fmtSize(v.size) + '</div></div>';
+            $("empty").innerHTML = T("正在找有视频的群和频道…");
         }
-      }
-      html += '</div>';
-      if (showLoadMore) {
-        html += '<div class="row focusable" tabindex="0" data-action="more"><div class="avatar" style="background:#444"><span class="letter">+</span></div><div><div class="row-title">' + t('load_more') + '</div></div></div>';
-      }
+        loadSources(!last);
     }
-    $('main-content').innerHTML = html;
-    focusFirst();
-  }
 
-  function loadMessages(query) {
-    showLoading(true);
-    var path = query
-      ? '/api/search?chat=' + enc(curChat) + '&className=' + enc(curClassName) + '&q=' + enc(query)
-      : '/api/messages?chat=' + enc(curChat) + '&className=' + enc(curClassName);
-    api(path, 'GET', null, function (err, data) {
-      showLoading(false);
-      if (err) { $('main-content').innerHTML = '<div class="empty">' + esc(err.message) + '</div>'; return; }
-      messages = (data && data.messages) ? data.messages : [];
-      offsetId = messages.length ? messages[messages.length - 1].id : 0;
-      renderGrid(messages, true, !query && messages.length >= 100, query);
-      loadSubs();
-    });
-  }
-
-  function loadMore() {
-    if (!curChat || !offsetId) return;
-    showLoading(true);
-    api('/api/messages?chat=' + enc(curChat) + '&className=' + enc(curClassName) + '&offsetId=' + offsetId, 'GET', null, function (err, data) {
-      showLoading(false);
-      if (err) return;
-      var more = (data && data.messages) ? data.messages : [];
-      var seen = {};
-      for (var i = 0; i < messages.length; i++) seen[messages[i].id] = true;
-      for (var j = 0; j < more.length; j++) { if (!seen[more[j].id]) { messages.push(more[j]); seen[more[j].id] = true; } }
-      messages.sort(function (a, b) { return b.id - a.id; });
-      offsetId = messages.length ? messages[messages.length - 1].id : 0;
-      renderGrid(messages, true, more.length >= 100, '');
-    });
-  }
-
-  function loadSubs() {
-    if (!curChat) return;
-    api('/api/subtitles?chat=' + enc(curChat) + '&className=' + enc(curClassName), 'GET', null, function (err, data) {
-      if (!err) subList = (data && data.subtitles) ? data.subtitles : [];
-    });
-  }
-
-  // ===== Global search =====
-  function doGlobalSearch(q) {
-    if (!q) { if (lastList === 'archived') loadDialogs(true); else loadDialogs(false); return; }
-    showLoading(true);
-    api('/api/searchGlobal?q=' + enc(q), 'GET', null, function (err, data) {
-      showLoading(false);
-      if (err) { $('main-content').innerHTML = '<div class="empty">' + esc(err.message) + '</div>'; return; }
-      var list = (data && data.messages) ? data.messages : [];
-      messages = list;
-      renderGrid(list, true, false, q);
-    });
-  }
-
-  function doSearch() {
-    var q = $('search-input').value.trim();
-    if (curChat) { if (!q) { loadMessages(''); return; } loadMessages(q); }
-    else doGlobalSearch(q);
-  }
-
-  function toggleSearch() {
-    var input = $('search-input');
-    var open = input.classList.contains('hidden');
-    if (open) {
-      input.classList.remove('hidden');
-      $('btn-search').classList.remove('hidden');
-      $('btn-search-toggle').textContent = '\u2715';
-      input.focus();
-    } else {
-      input.classList.add('hidden');
-      $('btn-search').classList.add('hidden');
-      $('btn-search-toggle').textContent = '\uD83D\uDD0D';
-      input.value = '';
-      if (curChat) loadMessages('');
-      else if (lastList === 'archived') loadDialogs(true);
-      else loadDialogs(false);
+    /* 左边只列有视频的来源。每个来源问一次「有几个视频」（limit 1），结果存在电视上，下次启动先用存的、后台再问一遍。 */
+    /* 来源栏的刷新：第一版只在启动时取一次，之后新建 / 加入的群、刚转发进视频的群都不出现。
+     * 现在打开来源栏时（20 秒内只一次）、从后台切回来时、停在主页每 5 分钟都重新取一遍。 */
+    var srcAt = 0;
+    function refreshSources(force) {
+        if (S.srcLoading || S.screen !== "home") { return; }
+        if (!force && Date.now() - srcAt < 20000) { return; }
+        loadSources(false);
     }
-  }
+    setInterval(function () { refreshSources(false); }, 5 * 60000);
 
-  // ===== Photos =====
-  function openPhoto(msgId) {
-    photoList = [];
-    for (var i = 0; i < messages.length; i++) {
-      var m = messages[i];
-      if (m.type === 'photo') photoList.push({ id: m.id, chatId: m.chatId || curChat, className: m.className || curClassName, caption: m.caption });
-    }
-    photoIndex = 0;
-    for (var j = 0; j < photoList.length; j++) { if (photoList[j].id === Number(msgId)) { photoIndex = j; break; } }
-    photoZoom = 1;
-    renderPhoto();
-    setView('photo');
-  }
-  function renderPhoto() {
-    var p = photoList[photoIndex];
-    if (!p) return;
-    pdfMsgId = null;
-    cleanupPdf();
-    var img = $('photo-img');
-    img.onload = null;
-    img.onerror = null;
-    img.classList.remove('pdf-mode');
-    img.classList.remove('hidden');
-    $('btn-photo-back').style.display = '';
-    $('photo-scroll').scrollTop = 0;
-    img.src = BACKEND + '/api/photo?chat=' + enc(p.chatId) + '&className=' + enc(p.className) + '&msgId=' + p.id;
-    img.style.transform = 'scale(' + photoZoom + ')';
-    $('photo-caption').textContent = (p.caption || '') + ' (' + (photoIndex + 1) + '/' + photoList.length + ')';
-  }
-  function zoomPhoto(delta) {
-    photoZoom = Math.max(1, Math.min(5, photoZoom + delta));
-    renderPhoto();
-  }
-  function nextPhoto(dir) {
-    if (!photoList.length) return;
-    photoIndex += dir;
-    if (photoIndex < 0) photoIndex = 0;
-    if (photoIndex >= photoList.length) photoIndex = photoList.length - 1;
-    photoZoom = 1;
-    renderPhoto();
-  }
-
-  // ===== PDF (pdf.js local, con respaldo del servidor) =====
-  function cleanupPdf() {
-    pdfUsingJs = false;
-    if (pdfRenderTask) { try { pdfRenderTask.cancel(); } catch (e) {} pdfRenderTask = null; }
-    if (pdfDoc) { try { pdfDoc.destroy(); } catch (e) {} pdfDoc = null; }
-    if (pdfTask) { try { pdfTask.destroy(); } catch (e) {} pdfTask = null; }
-    var c = $('pdf-canvas');
-    if (c) c.classList.add('hidden');
-    var bar = $('pdf-bar');
-    if (bar) bar.classList.add('hidden');
-  }
-  function pdfRawUrl() {
-    return BACKEND + '/api/pdfraw?chat=' + enc(curMediaChat) + '&className=' + enc(curMediaClass) + '&msgId=' + pdfMsgId;
-  }
-  function openPdf(msgId) {
-    pdfMsgId = Number(msgId);
-    pdfPage = 1;
-    pdfPages = 1;
-    resolveMediaChat(msgId);
-    cleanupPdf();
-    var img = $('photo-img');
-    img.onload = null;
-    img.onerror = null;
-    img.removeAttribute('src');
-    img.classList.add('hidden');
-    var canvas = $('pdf-canvas');
-    canvas.classList.remove('hidden');
-    $('pdf-bar').classList.remove('hidden');
-    $('pdf-pageinfo').textContent = '1 / ...';
-    $('photo-caption').textContent = t('pdf_loading');
-    $('btn-photo-back').style.display = '';
-    $('photo-scroll').scrollTop = 0;
-    setView('photo');
-    // Conteo de páginas rápido (también sirve de respaldo si pdf.js falla).
-    api('/api/pdfinfo?chat=' + enc(curMediaChat) + '&className=' + enc(curMediaClass) + '&msgId=' + msgId, 'GET', null, function (err, data) {
-      if (err || !data || !data.pages) return;
-      if (pdfMsgId !== Number(msgId) || pdfUsingJs) return;
-      pdfPages = data.pages;
-      $('pdf-pageinfo').textContent = pdfPage + ' / ' + pdfPages;
-    });
-    loadPdfJs();
-  }
-  function loadPdfJs() {
-    var msg = pdfMsgId;
-    if (!window.pdfjsLib) { renderPdfServer(); return; }
-    try {
-      window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'js/pdf/pdf.worker.min.js';
-    } catch (e) {}
-    var task;
-    try {
-      task = window.pdfjsLib.getDocument({ url: pdfRawUrl() });
-    } catch (e) {
-      renderPdfServer();
-      return;
-    }
-    pdfTask = task;
-    task.promise.then(function (doc) {
-      if (msg !== pdfMsgId) { try { doc.destroy(); } catch (e) {} return; }
-      pdfDoc = doc;
-      pdfPages = doc.numPages;
-      pdfUsingJs = true;
-      $('pdf-pageinfo').textContent = pdfPage + ' / ' + pdfPages;
-      renderPdfPage();
-    }).catch(function (err) {
-      logToServer('pdf.js error: ' + (err && err.message ? err.message : err));
-      if (msg === pdfMsgId) {
-        toast(t('pdf_fallback'));
-        renderPdfServer();
-      }
-    });
-  }
-  function renderPdfPage() {
-    if (!pdfDoc) return;
-    var doc = pdfDoc;
-    var pageNum = pdfPage;
-    var canvas = $('pdf-canvas');
-    var scroller = $('photo-scroll');
-    var maxW = scroller.clientWidth || window.innerWidth || 1280;
-    // El TV escala 1280x720 a 4K: renderizar a 2x mantiene el texto nítido.
-    var dpr = Math.min(2, Math.max(1, window.devicePixelRatio || 1));
-    $('pdf-pageinfo').textContent = pageNum + ' / ' + pdfPages;
-    $('photo-caption').textContent = t('pdf');
-    doc.getPage(pageNum).then(function (page) {
-      if (doc !== pdfDoc || pageNum !== pdfPage) return;
-      var base = page.getViewport({ scale: 1 });
-      var viewport = page.getViewport({ scale: (maxW / base.width) * dpr });
-      canvas.width = Math.floor(viewport.width);
-      canvas.height = Math.floor(viewport.height);
-      canvas.style.width = '100%';
-      canvas.style.height = 'auto';
-      var ctx = canvas.getContext('2d');
-      ctx.fillStyle = '#fff';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      if (pdfRenderTask) { try { pdfRenderTask.cancel(); } catch (e) {} }
-      var task = page.render({ canvasContext: ctx, viewport: viewport });
-      pdfRenderTask = task;
-      task.promise.then(function () {
-        if (doc !== pdfDoc || pageNum !== pdfPage) return;
-        scroller.scrollTop = 0;
-      }).catch(function (err) {
-        if (err && err.name === 'RenderingCancelledException') return;
-        logToServer('pdf render error: ' + (err && err.message ? err.message : err));
-      });
-    }).catch(function (err) {
-      logToServer('pdf page error: ' + (err && err.message ? err.message : err));
-    });
-  }
-  var pdfPreloads = [];
-  function pdfUrl(page) {
-    return BACKEND + '/api/pdf?chat=' + enc(curMediaChat) + '&className=' + enc(curMediaClass) + '&msgId=' + pdfMsgId + '&page=' + page;
-  }
-  function preloadPdfPage(page) {
-    if (!pdfMsgId || page < 1 || page > pdfPages) return;
-    try {
-      var im = new Image();
-      im.src = pdfUrl(page);
-      pdfPreloads.push(im);
-      if (pdfPreloads.length > 4) pdfPreloads.shift();
-    } catch (e) {}
-  }
-  function goPdfPage(delta) {
-    if (!pdfMsgId) return;
-    var p = pdfPage + delta;
-    if (p < 1) p = 1;
-    if (p > pdfPages) p = pdfPages;
-    if (p === pdfPage) return;
-    pdfPage = p;
-    if (pdfUsingJs && pdfDoc) renderPdfPage();
-    else renderPdfServer();
-  }
-  // Respaldo: el servidor rasteriza la página (como en la versión anterior).
-  function renderPdfServer() {
-    if (!pdfMsgId) return;
-    pdfUsingJs = false;
-    var canvas = $('pdf-canvas');
-    if (canvas) canvas.classList.add('hidden');
-    var bar = $('pdf-bar');
-    if (bar) bar.classList.remove('hidden');
-    var page = pdfPage;
-    $('pdf-pageinfo').textContent = page + ' / ' + pdfPages;
-    $('photo-caption').textContent = t('pdf') + ' ' + page + ' / ' + pdfPages + ' ...';
-    // Se crea una imagen nueva y se sustituye solo cuando terminó de cargar,
-    // así la página cambia siempre (también en motores antiguos).
-    var old = $('photo-img');
-    if (old) old.classList.add('hidden');
-    var ni = new Image();
-    ni.id = 'photo-img';
-    ni.className = 'pdf-mode';
-    ni.alt = '';
-    ni.onload = function () {
-      ni.onload = null;
-      ni.onerror = null;
-      if (page !== pdfPage || !pdfMsgId) return;
-      var cur = $('photo-img');
-      if (cur && cur !== ni && cur.parentNode) cur.parentNode.replaceChild(ni, cur);
-      $('photo-scroll').scrollTop = 0;
-      setTimeout(function () { if (page === pdfPage && pdfMsgId) $('photo-scroll').scrollTop = 0; }, 100);
-      $('photo-caption').textContent = t('pdf') + ' ' + page + ' / ' + pdfPages;
-      preloadPdfPage(page + 1);
-      preloadPdfPage(page - 1);
-    };
-    ni.onerror = function () {
-      ni.onload = null;
-      ni.onerror = null;
-      if (page === pdfPage) {
-        $('photo-caption').textContent = t('pdf') + ' ' + page + ' / ' + pdfPages + ' [!]';
-      }
-    };
-    ni.src = pdfUrl(page);
-  }
-  function scrollPdf(delta) {
-    var sc = $('photo-scroll');
-    sc.scrollTop += delta;
-  }
-
-  // ===== Player =====
-  // Resuelve el chat real del mensaje (para resultados de búsqueda global,
-  // donde curChat es null pero el mensaje trae su propio chatId).
-  function resolveMediaChat(msgId) {
-    curMediaChat = curChat;
-    curMediaClass = curClassName;
-    for (var i = 0; i < messages.length; i++) {
-      if (messages[i].id === Number(msgId)) {
-        curMediaChat = messages[i].chatId || curChat;
-        curMediaClass = messages[i].className || curClassName;
-        return;
-      }
-    }
-  }
-
-  function mediaEl() { return playingType === 'audio' ? $('audio') : $('video'); }
-  function startVideoLoad() {
-    if (videoLoadTimer) { clearTimeout(videoLoadTimer); videoLoadTimer = null; }
-    var v = $('video');
-    try { v.pause(); } catch (e) {}
-    v.removeAttribute('src');
-    try { v.load(); } catch (e) {}
-    // Cache-buster: fuerza una carga nueva en cada intento. Chromium 38 puede
-    // reutilizar un error previo y no reintentar si la URL es idéntica.
-    var sep = videoUrl.indexOf('?') >= 0 ? '&' : '?';
-    v.src = videoUrl + sep + '_t=' + Date.now();
-    $('btn-playpause').textContent = t('pause');
-    $('player-time').textContent = '0:00 / 0:00';
-    $('pbar-fill').style.width = '0%';
-    try { v.play(); } catch (e) {}
-  }
-  function playVideo(msgId) {
-    var item = null;
-    for (var i = 0; i < messages.length; i++) if (messages[i].id === Number(msgId)) { item = messages[i]; break; }
-    playingType = item ? item.type : 'video';
-    curMsgId = Number(msgId);
-    resolveMediaChat(msgId);
-    videoUrl = BACKEND + '/api/video?chat=' + enc(curMediaChat) + '&className=' + enc(curMediaClass) + '&msgId=' + enc(String(msgId)) + '&native=1';
-    $('player-title').textContent = curChatTitle || '';
-    $('player-msg').textContent = (playingType === 'video_file') ? t('converting_mkv') : t('loading_video');
-    try { $('audio').pause(); } catch (e) {}
-    removeSubtitleTracks();
-    pendingResume = progress[progKey(curMediaChat, msgId)] || 0;
-    didSeek = false;
-    videoRetry = 0;
-    startVideoLoad();
-    showPlayerControls();
-    setView('player');
-  }
-  function removeSubtitleTracks() {
-    var v = $('video');
-    var tracks = v.querySelectorAll('track');
-    for (var i = 0; i < tracks.length; i++) v.removeChild(tracks[i]);
-    activeSub = null;
-  }
-  function attachSubtitles() {
-    if (!subList.length) return;
-    var v = $('video');
-    var chosen = subList[0];
-    var vidName = (curChatTitle || '').toLowerCase();
-    for (var i = 0; i < subList.length; i++) {
-      var n = (subList[i].fileName || '').toLowerCase().replace(/\.(srt|ass|vtt)$/i, '');
-      if (n && vidName && (vidName.indexOf(n) !== -1 || n.indexOf(vidName) !== -1)) { chosen = subList[i]; break; }
-    }
-    apiText('/api/subtitle?chat=' + enc(curMediaChat) + '&className=' + enc(curMediaClass) + '&msgId=' + chosen.id, function (err, vtt) {
-      if (err) return;
-      try {
-        var blob = new Blob([vtt], { type: 'text/vtt' });
-        var url = URL.createObjectURL(blob);
-        var track = document.createElement('track');
-        track.kind = 'subtitles';
-        track.label = t('subtitles');
-        track.srclang = 'es';
-        track.src = url;
-        track.default = true;
-        v.appendChild(track);
-        for (var j = 0; j < v.textTracks.length; j++) {
-          if (v.textTracks[j].kind === 'subtitles') v.textTracks[j].mode = 'showing';
+    async function loadSources(openFirst) {
+        var list;
+        S.srcLoading = true;
+        srcAt = Date.now();
+        var tList = performance.now(), listMs;
+        try { list = await TG.sources(40); listMs = Math.round(performance.now() - tList); } catch (e) { S.srcLoading = false; R("来源列表出错 " + errStr(e)); return; }
+        S.allSources = list;
+        var before = S.sources.map(function (s) { return s.id; }).join(",");
+        function refresh() {
+            /* 光标留在原来那个来源上（列表变了下标会变） */
+            var focusedId = S.zone === "rail" && railItems()[S.railFocus] ? railItems()[S.railFocus].id : null;
+            /* 网页列表（群里发的收藏、分类链接）排最前面 */
+            S.sources = Store.webSources().concat(list.filter(function (s) {
+                var c = Store.srcCount(s.id);
+                return s.id === "me" || (c && c.n > 0) || (S.src && s.id === S.src.id);
+            }));
+            var fi = focusedId === null ? -1 : railItems().findIndex(function (s) { return s.id === focusedId; });
+            S.railFocus = fi >= 0 ? fi : Math.min(S.railFocus, railItems().length - 1);
+            renderRail();
         }
-      } catch (e) {}
+        refresh();
+        var t0 = performance.now(), probed = 0, withVideo = 0, i = 0;
+        async function worker() {
+            while (i < list.length) {
+                var s = list[i++];
+                try {
+                    var n = await TG.videoCount(s.id);
+                    Store.setSrcCount(s.id, n);
+                    probed++;
+                    if (n > 0) {
+                        withVideo++;
+                        if (openFirst && !S.src) { openSource(s); }
+                    }
+                    refresh();
+                } catch (e) {
+                    /* 退出了、改成私有的：以前只是跳过，存着的旧计数 n>0 一直把它留在来源栏里，点一次失败一次 */
+                    if (TG.noAccess(e)) { Store.setSrcCount(s.id, 0); refresh(); }
+                }
+            }
+        }
+        await Promise.all([worker(), worker()]);
+        await refreshWebSources(list);
+        S.srcLoading = false;
+        var after = S.sources.map(function (s) { return s.id; }).join(",");
+        R("来源：" + list.length + " 个会话里 " + withVideo + " 个有视频（会话列表 " + listMs + "ms，问了 " + probed + " 个，" + Math.round(performance.now() - t0) + "ms）" +
+          (before && before !== after ? "，列表变了" : ""));
+        if (openFirst && !S.src) {
+            $("src-sub").textContent = "";
+            $("empty").innerHTML = T("还没有哪个群里有视频。<br>在手机上把想看的片子转发到一个群（比如自己建的），回到电视上按确认刷新。");
+        }
+    }
+
+    async function login() {
+        S.screen = "login";
+        $("home").classList.add("hide");
+        $("panel").classList.add("on");
+        /* 电视上还有别的账号：说清楚这是在添加账号（还是这个账号的会话没了要重扫），按返回能回去 */
+        var a = Accounts.active(), others = Accounts.list().length > 1;
+        /* 只有一个账号、它原来登录着（会话在别处被结束了）：也说一句，不然观众只看到扫码页、不知道为什么 */
+        $("qrnote").textContent = !others ? (a.userId ? T("{0} 的登录失效了，重新扫码就好", a.name) : "") :
+            !a.userId ? T("添加账号：用另一个 Telegram 账号扫码 · 按返回键取消") : T("{0} 要重新扫码登录 · 按返回键换别的账号", a.name);
+        var n = 0;
+        await TG.login(function (url) {
+            n++;
+            /* Tizen 5.0（老的那份 mtcute）上从启动到能登录要两分半（2026-10-28）：第一张码出在哪一刻 */
+            if (n === 1) { R("扫码：第一张码，从进程启动 " + Math.round(performance.now()) + "ms"); }
+            $("qr").innerHTML = TGLib.qrSvg(url, 10);
+            $("qrstate").textContent = T("二维码 30 秒换一张（第 {0} 张）", n);
+        }, function () {
+            R("扫码：手机上确认了（第 " + n + " 张码）");
+            $("qrstate").textContent = T("已扫码，正在登录…");
+        }, function () {
+            R("扫码：要两步验证密码");
+            return askPassword().then(function (pw) { R("扫码：交了两步验证密码"); return pw; });
+        }, function () { R("扫码：两步验证密码不对"); toast(T("两步验证密码不对，再输一次")); });
+        R("扫码登录成功（出了 " + n + " 张码）");
+        $("panel").classList.remove("on");
+    }
+
+    /* 填 API ID / Hash（apikey.js）：填好、格式对了才 resolve；对不对要到扫码那一步 Telegram 才说（boot 里接着）。prev：上次填的，改一两个字就行 */
+    function askApi(msg, prev) {
+        S.screen = "api";
+        $("home").classList.add("hide");
+        $("api-qr").innerHTML = TGLib.qrSvg("https://my.telegram.org/apps", 8);
+        $("api-id").value = prev ? String(prev.id) : "";
+        $("api-hash").value = prev ? prev.hash : "";
+        $("api-msg").textContent = msg || "";
+        $("api").classList.add("on");
+        setTimeout(function () { $(prev ? "api-hash" : "api-id").focus(); }, 50);
+        return new Promise(function (resolve) { S.apiDone = resolve; });
+    }
+    function submitApi() {
+        var c = ApiKey.check($("api-id").value, $("api-hash").value);
+        if (!c.idOk) {
+            $("api-msg").textContent = c.id ? T("App api_id 是一串数字，现在填的是「{0}」", c.id) : T("先填 App api_id");
+            $("api-id").focus();
+            return;
+        }
+        if (!c.hashOk) {
+            $("api-msg").textContent = !c.hash ? T("再填 App api_hash") : /[^0-9a-f]/.test(c.hash) ? T("App api_hash 只有 0–9 和 a–f，里面有别的字") :
+                T("App api_hash 是 32 位，现在是 {0} 位", c.hash.length);
+            $("api-hash").focus();
+            return;
+        }
+        if (!ApiKey.set(c.id, c.hash)) { $("api-msg").textContent = T("存不下来（电视的存储出错了）"); return; }
+        R("API ID / Hash 在电视上填好了（格式对，Telegram 认不认要到扫码时才知道）");
+        try { document.activeElement.blur(); } catch (e) {}
+        $("api").classList.remove("on");
+        $("home").classList.remove("hide");
+        S.screen = "boot";
+        var done = S.apiDone;
+        S.apiDone = null;
+        if (done) { done(); }
+    }
+    /* 13 = 确认，65376 = 屏幕键盘上的「完成」：api_id 那一栏去下一栏，api_hash 那一栏交 */
+    ["api-id", "api-hash"].forEach(function (id) {
+        $(id).addEventListener("keydown", function (e) {
+            if (e.keyCode !== 13 && e.keyCode !== 65376) { return; }
+            e.preventDefault();
+            e.stopPropagation();      // 不然冒泡到 document 的按键处理，又交一次
+            if (id === "api-id" && this.value.trim() && !$("api-hash").value.trim()) { $("api-hash").focus(); }
+            else { submitApi(); }
+        });
     });
-  }
-  function playAudio(msgId) {
-    playingType = 'audio';
-    curMsgId = Number(msgId);
-    resolveMediaChat(msgId);
-    var url = BACKEND + '/api/audio?chat=' + enc(curMediaChat) + '&className=' + enc(curMediaClass) + '&msgId=' + enc(String(msgId)) + '&native=1';
-    $('player-title').textContent = curChatTitle || '';
-    $('player-msg').textContent = t('loading_music');
-    try { $('video').pause(); } catch (e) {}
-    removeSubtitleTracks();
-    var a = $('audio');
-    a.removeAttribute('src');
-    try { a.load(); } catch (e) {}
-    a.src = url;
-    $('btn-playpause').textContent = t('pause');
-    $('player-time').textContent = '0:00 / 0:00';
-    $('pbar-fill').style.width = '0%';
-    try { a.play(); } catch (e) {}
-    showPlayerControls();
-    setView('player');
-  }
-  function exitPlayer() {
-    saveCurProgress();
-    if (videoLoadTimer) { clearTimeout(videoLoadTimer); videoLoadTimer = null; }
-    videoRetry = 0;
-    var v = $('video');
-    try { v.pause(); } catch (e) {}
-    v.removeAttribute('src');
-    var a = $('audio');
-    try { a.pause(); } catch (e) {}
-    a.removeAttribute('src');
-    setView('main');
-    focusFirst();
-  }
-  function updatePlayerTime() {
-    var v = mediaEl();
-    if (!v.duration) { $('player-time').textContent = '0:00 / 0:00'; return; }
-    $('player-time').textContent = fmtDur(v.currentTime) + ' / ' + fmtDur(v.duration);
-    $('pbar-fill').style.width = (v.currentTime / v.duration) * 100 + '%';
-  }
-  function seekBy(seconds) {
-    var v = mediaEl();
-    if (!v.duration) return;
-    var t2 = v.currentTime + seconds;
-    if (t2 < 0) t2 = 0;
-    if (t2 > v.duration) t2 = v.duration;
-    v.currentTime = t2;
-    updatePlayerTime();
-  }
-  function togglePlay() { var v = mediaEl(); if (v.paused) v.play(); else v.pause(); showPlayerControls(); }
-
-  function showPlayerControls() {
-    var top = document.querySelector('#view-player .player-top');
-    var ctrl = document.querySelector('#view-player .player-controls');
-    if (top) top.classList.remove('hidden-controls');
-    if (ctrl) ctrl.classList.remove('hidden-controls');
-    if (controlsTimer) { clearTimeout(controlsTimer); controlsTimer = null; }
-    var v = mediaEl();
-    if (v && !v.paused) {
-      controlsTimer = setTimeout(hidePlayerControls, 3000);
-    }
-  }
-  function hidePlayerControls() {
-    var top = document.querySelector('#view-player .player-top');
-    var ctrl = document.querySelector('#view-player .player-controls');
-    if (top) top.classList.add('hidden-controls');
-    if (ctrl) ctrl.classList.add('hidden-controls');
-  }
-
-  // ===== Actions =====
-  function onAction(action, el) {
-    if (action === 'chat') openChat(el.getAttribute('data-chat'), el.getAttribute('data-class'), el.getAttribute('data-title'));
-    else if (action === 'play') playVideo(el.getAttribute('data-msg'));
-    else if (action === 'audio') playAudio(el.getAttribute('data-msg'));
-    else if (action === 'photo') openPhoto(el.getAttribute('data-msg'));
-    else if (action === 'pdf') openPdf(el.getAttribute('data-msg'));
-    else if (action === 'more') loadMore();
-    else if (action === 'filter') {
-      filterType = el.getAttribute('data-filter');
-      renderGrid(messages, true, messages.length >= 100, '');
-    }
-    else if (action === 'back-list') { if (lastList === 'archived') showArchived(); else showChannels(); }
-  }
-
-  // ===== Navigation =====
-  function isVisible(el) {
-    var n = el;
-    while (n && n !== document) {
-      if (n.classList && n.classList.contains('hidden')) return false;
-      n = n.parentNode;
-    }
-    return true;
-  }
-  function focusables() {
-    var els = document.querySelectorAll('.focusable');
-    var out = [];
-    for (var i = 0; i < els.length; i++) if (isVisible(els[i])) out.push(els[i]);
-    return out;
-  }
-  function focusFirst() {
-    var els = focusables();
-    for (var i = 0; i < els.length; i++) {
-      if (els[i].id !== 'search-input' && els[i].id !== 'btn-search') { els[i].focus(); return; }
-    }
-  }
-  function spatialMove(dx, dy) {
-    var els = focusables();
-    var cur = document.activeElement;
-    if (els.indexOf(cur) < 0) { if (els.length) els[0].focus(); return; }
-    var r = cur.getBoundingClientRect();
-    var cx = r.left + r.width / 2, cy = r.top + r.height / 2;
-    var best = null, bestScore = Infinity;
-    for (var i = 0; i < els.length; i++) {
-      var el = els[i];
-      if (el === cur) continue;
-      var er = el.getBoundingClientRect();
-      var ex = er.left + er.width / 2, ey = er.top + er.height / 2;
-      var ddx = ex - cx, ddy = ey - cy;
-      if (dx > 0 && ddx <= 0) continue;
-      if (dx < 0 && ddx >= 0) continue;
-      if (dy > 0 && ddy <= 0) continue;
-      if (dy < 0 && ddy >= 0) continue;
-      // mantiene la misma fila (horizontal) o columna (vertical)
-      if (dx !== 0 && (er.bottom <= r.top || er.top >= r.bottom)) continue;
-      if (dy !== 0 && (er.right <= r.left || er.left >= r.right)) continue;
-      var primary = dx !== 0 ? ddx * dx : ddy * dy;
-      var perp = dx !== 0 ? Math.abs(ddy) : Math.abs(ddx);
-      var score = primary + perp * 0.5;
-      if (score < bestScore) { bestScore = score; best = el; }
-    }
-    if (best) best.focus();
-  }
-
-  document.addEventListener('keydown', function (e) {
-    var key = e.keyCode;
-
-    // ===== Botones de color del control Samsung =====
-    // ROJO 403 = buscar · VERDE 404 = música · AMARILLO 405 = PDFs · AZUL 406 = tamaño de texto
-    if (key === 403) {
-      if (screen === 'main') toggleSearch();
-      e.preventDefault();
-      return;
-    }
-    if (key === 404 || key === 405) {
-      if (screen === 'main' && curChat) {
-        var want = (key === 404) ? 'audio' : 'pdf';
-        filterType = (filterType === want) ? 'all' : want;
-        renderGrid(messages, true, messages.length >= 100, '');
-        toast(t(filterType === 'all' ? 'filter_all' : (want === 'audio' ? 'filter_music' : 'filter_pdfs')));
-      } else {
-        toast(t('open_chat_first'));
-      }
-      e.preventDefault();
-      return;
-    }
-    if (key === 406) {
-      cycleTextSize();
-      e.preventDefault();
-      return;
+    function apiKey(k) {
+        var inInput = document.activeElement && document.activeElement.tagName === "INPUT";
+        if (k === 10009) {
+            /* 输入框里按返回先收起键盘；不在输入框里，没有凭证什么都做不了，按两次退出 */
+            if (inInput) { document.activeElement.blur(); return; }
+            if (Date.now() - S.backAt < 2000) { exitApp(); return; }
+            S.backAt = Date.now();
+            toast(T("再按一次返回键退出"));
+            return;
+        }
+        if (inInput) { return; }
+        if (k === 38) { $("api-id").focus(); }
+        else if (k === 40) { $("api-hash").focus(); }
+        else if (k === 13) { submitApi(); }
     }
 
-    if (screen === 'player') {
-      showPlayerControls();
-      if (key === 37) { seekBy(-10); e.preventDefault(); }
-      else if (key === 39) { seekBy(10); e.preventDefault(); }
-      else if (key === 38) { seekBy(60); e.preventDefault(); }
-      else if (key === 40) { seekBy(-60); e.preventDefault(); }
-      else if (key === 13) { togglePlay(); e.preventDefault(); }
-      else if (key === 10009 || key === 27) { saveCurProgress(); exitPlayer(); e.preventDefault(); }
-      return;
+    function askPassword() {
+        S.screen = "password";
+        $("pwbox").className = "on";
+        var pw = $("pw");
+        pw.value = "";
+        pw.focus();
+        return new Promise(function (resolve) {
+            pw.onkeydown = function (e) {
+                if ((e.keyCode === 13 || e.keyCode === 65376) && pw.value) {
+                    $("pwbox").className = "";
+                    pw.blur();
+                    S.screen = "login";
+                    resolve(pw.value);
+                }
+            };
+        });
     }
-    if (screen === 'photo') {
-      if (pdfMsgId) {
-        if (key === 37) { goPdfPage(-1); e.preventDefault(); }
-        else if (key === 39) { goPdfPage(1); e.preventDefault(); }
-        else if (key === 38) { scrollPdf(-250); e.preventDefault(); }
-        else if (key === 40) { scrollPdf(250); e.preventDefault(); }
-        else if (key === 10009 || key === 27 || key === 13) { pdfMsgId = null; cleanupPdf(); setView('main'); focusFirst(); e.preventDefault(); }
-        return;
-      }
-      if (key === 37) { nextPhoto(-1); e.preventDefault(); }
-      else if (key === 39) { nextPhoto(1); e.preventDefault(); }
-      else if (key === 38) { zoomPhoto(0.5); e.preventDefault(); }
-      else if (key === 40) { zoomPhoto(-0.5); e.preventDefault(); }
-      else if (key === 10009 || key === 27) { setView('main'); focusFirst(); e.preventDefault(); }
-      else if (key === 13) { setView('main'); focusFirst(); e.preventDefault(); }
-      return;
-    }
-    if (key === 37) { spatialMove(-1, 0); e.preventDefault(); }
-    else if (key === 39) { spatialMove(1, 0); e.preventDefault(); }
-    else if (key === 38) { spatialMove(0, -1); e.preventDefault(); }
-    else if (key === 40) { spatialMove(0, 1); e.preventDefault(); }
-    else if (key === 10009 || key === 27) {
-      if (screen === 'main' && curChat) { if (lastList === 'archived') showArchived(); else showChannels(); e.preventDefault(); }
-      else if (screen === 'login' || screen === 'pass') { setView('setup'); $('setup-url').focus(); e.preventDefault(); }
-    } else if (key === 13) {
-      var el = findUp(document.activeElement, 'data-action');
-      if (el) { onAction(el.getAttribute('data-action'), el); e.preventDefault(); }
-    }
-  });
 
-  function saveCurProgress() {
-    var v = $('video');
-    if (!curMediaChat || !curMsgId) return;
-    if ((playingType === 'video' || playingType === 'video_file') && v.duration && v.currentTime > 5) {
-      progress[progKey(curMediaChat, curMsgId)] = Math.floor(v.currentTime);
-      saveProgress();
-    }
-  }
+    /* ---------- 来源 ---------- */
 
-  // ===== Init =====
-  window.onerror = function (msg, src, line) {
+    var KIND = { self: "★", group: T("群"), channel: T("频道"), user: T("私聊"), web: T("网页") };
+
+    /* 来源栏最上面是「搜索」，最下面是「退出登录」、换界面语言。换语言那一项用要换成的那种语言写（看不懂当前语言的人也认得出） */
+    function railItems() {
+        var sx = { id: "__search", title: S.src && S.src.kind === "search" ? T("搜索：{0}", S.src.query) : T("搜索"), kind: "" };
+        var hx = { id: "__history", title: T("播放记录"), kind: "history" };
+        var a = Accounts.active();
+        return [sx, hx].concat(S.sources, [{ id: "__acct", title: a.name ? T("账号：{0}", a.name) : T("账号"), kind: "" },
+                                       { id: "__opts", title: T("设置"), kind: "" },
+                                       { id: "__lang", title: I18n.lang === "zh" ? "English" : I18n.lang === "en" ? "Español" : "中文界面", kind: "" }]);
+    }
+
+    function renderRail() {
+        $("home").classList.toggle("railopen", S.zone === "rail");
+        var list = railItems(), html = "";
+        list.forEach(function (s, i) {
+            var cur = S.src && (s.id === S.src.id || (s.id === "__search" && S.src.kind === "search"));
+            var cls = "src" + (cur ? " cur" : "") + (S.zone === "rail" && i === S.railFocus ? " focus" : "");
+            var kind = KIND[s.kind] || "";
+            if (s.archived) { kind = (kind ? kind + " · " : "") + T("归档"); }
+            html += "<div class='" + cls + "'>" + (kind ? "<span class='k'>" + kind + "</span>" : "") + esc(s.title) + "</div>";
+        });
+        $("rail-list").innerHTML = html;
+        var off = Math.max(0, Math.min((S.railFocus - 5) * SRC_H, list.length * SRC_H - 900));
+        $("rail-list").style.transform = "translateY(" + (-Math.max(0, off)) + "px)";
+    }
+
+    /* opts.quiet：开机进上次的来源时，要登录的不自动弹登录框（用户 2026-10-02：每次开机都被它挡住），按确认才弹 */
+    async function openSource(src, opts) {
+        S.src = { id: src.id, title: src.title, kind: src.kind, url: src.url, query: src.query, archived: src.archived };
+        if (src.kind !== "search" && src.kind !== "history") { Store.setLastSource(S.src); }      // 开机不重新搜一遍、不进播放记录，进上次的群
+        var g = ++S.gen;
+        S.items = []; S.view = []; S.next = undefined; S.total = 0; S.focus = 0; S.gridOff = 0; S.loading = true; S.filterZone = false;
+        $("src-title").textContent = src.title;
+        $("src-sub").textContent = T("加载中…");
+        renderGrid();
+        renderRail();
+        var t0 = performance.now(), page, links;
+        if (src.kind === "web") { return openWebList(S.src, g, t0, opts || {}); }
+        if (src.kind === "search") { return openSearch(S.src, g, t0); }
+        if (src.kind === "history") { return openHistory(g, t0); }
+        /* 群里发的网站链接（web.js）跟视频混在一起按时间排。只取最近 40 条带链接的消息，翻页只翻视频 */
+        var linksP = TG.links(src.id, 40).catch(function (e) { R("来源「" + Diag.priv(src.title) + "」取链接出错 " + errStr(e)); return []; });
+        try {
+            page = await TG.videos(src.id, undefined, 40);
+            links = await linksP;
+        } catch (e) {
+            if (g !== S.gen) { return; }
+            S.loading = false;
+            R("来源「" + Diag.priv(src.title) + "」出错 " + errStr(e));
+            $("src-sub").textContent = "";
+            if (TG.noAccess(e)) {
+                /* 退出了、被移出、改成私有、删了：说清楚、不放 issue 码、不当出事，从来源栏拿掉，开机不再去开它
+                 * （2026-10-28 一台电视在一个退出了的频道上点了四次，四次都是原始错误加码、传了上来） */
+                Store.setSrcCount(src.id, 0);
+                Store.dropLastSource(src.id);
+                $("empty").innerHTML = T("进不去这个群或频道了：可能已经退出，或者它不再公开");
+                return "gone";
+            }
+            $("empty").innerHTML = T("读不到这里的视频：{0}<br>按确认重试", esc(errStr(e))) + reportHtml(240);
+            Diag.incident("读不到来源里的视频：" + errStr(e));
+            return;
+        }
+        if (g !== S.gen) { return; }
+        S.loading = false;
+        syncWebSources(src, links.filter(function (l) { return l.kind === "weblist"; }));
+        links = links.filter(function (l) { return l.kind === "web"; });
+        S.items = withDur(page.items).concat(links).sort(function (a, b) { return b.date - a.date; });
+        S.next = page.next;
+        S.total = page.total + links.length;
+        /* 焦点落在最近看过的那一条 */
+        var best = -1, at = 0;
+        S.items.forEach(function (it, i) {
+            var p = Store.getProgress(it.fileKey);
+            if (p && p.at > at) { at = p.at; best = i; }
+        });
+        S.focus = viewIndex(best >= 0 ? best : 0);
+        R("来源「" + Diag.priv(src.title) + "」" + Math.round(performance.now() - t0) + "ms，" + S.items.length + "/" + S.total + " 个视频" + (links.length ? "（其中网页链接 " + links.length + " 个）" : ""));
+        renderGrid();
+    }
+
+    async function loadMore() {
+        if (S.loading || S.next === undefined || S.next === null) { return; }
+        S.loading = true;
+        var g = S.gen;
+        if (S.src.kind === "web") {
+            try {
+                var wp = await Web.list(S.src.url, S.next);
+                if (g !== S.gen) { return; }
+                /* 翻页期间网站上新加了片子，整个列表往后挪，同一个会在下一页再出现一次 */
+                var have = {};
+                S.items.forEach(function (it) { have[it.url] = true; });
+                S.items = S.items.concat(wp.items.filter(function (x) { return !have[x.url]; }).map(webItem));
+                S.next = wp.next;
+                if (wp.total) { S.total = wp.total; }
+                renderGrid();
+            } catch (e) {
+                R("列表翻页出错 " + errStr(e));
+            } finally { if (g === S.gen) { S.loading = false; } }
+            return;
+        }
+        try {
+            var page = S.src.kind === "search" ? await TG.search(S.src.query, S.next, 40) : await TG.videos(S.src.id, S.next, 40);
+            if (g !== S.gen) { return; }
+            S.items = S.items.concat(withDur(page.items));
+            S.next = page.next;
+            renderGrid();
+        } catch (e) {
+            R("翻页出错 " + errStr(e));
+        } finally { if (g === S.gen) { S.loading = false; } }
+    }
+
+    /* 当文件发的（MKV 之类）Telegram 不知道时长：放过一次记下来的 */
+    function withDur(items) {
+        items.forEach(function (it) { if (it.asFile && !it.duration) { it.duration = Store.dur(it.fileKey); } });
+        return items;
+    }
+
+    /* ---------- 播放记录 ---------- */
+
+    /* 开始放就记一笔（音乐只记点的那首，自动接下去的不记）。找不回来的不记：自测的假片子、没有消息编号的 */
+    function remember(it) {
+        if (/^selftest:/.test(it.key || "")) { return; }
+        var h = { k: it.fileKey || it.key, kind: it.kind === "music" || it.kind === "web" || it.kind === "pdf" ? it.kind : "video", title: it.title, at: Date.now() };
+        if (it.msg && it.msg.chat && it.msg.chat.id && it.msg.id) { h.chat = it.msg.chat.id; h.msg = it.msg.id; }
+        if (it.kind === "web") { h.url = it.url; h.site = it.site; h.image = it.image || ""; }
+        if (h.kind === "web" ? !h.url : !h.chat) { return; }
+        Store.addHistory(h);
+    }
+
+    async function openHistory(g, t0) {
+        var refs = Store.history(), r;
+        try { r = await TG.byRefs(refs); }
+        catch (e) {
+            if (g !== S.gen) { return; }
+            S.loading = false;
+            R("播放记录出错 " + errStr(e));
+            $("empty").innerHTML = T("读不到播放记录：{0}<br>按确认重试", esc(errStr(e))) + reportHtml(240);
+            return;
+        }
+        if (g !== S.gen) { return; }
+        S.loading = false;
+        S.items = withDur(r.items);
+        S.total = S.items.length;
+        R("播放记录 " + Math.round(performance.now() - t0) + "ms，记了 " + refs.length + " 条，找回 " + S.items.length + " 个" + (r.missing ? "（" + r.missing + " 个消息没了）" : ""));
+        renderGrid();
+        if (!S.items.length) { $("empty").innerHTML = T("还没有放过什么。<br>放过的视频、网页链接、歌和 PDF 会记在这里，最近的在前。"); }
+    }
+
+    /* ---------- 搜索（所有会话里的视频）---------- */
+
+    async function openSearch(src, g, t0) {
+        var page;
+        try { page = await TG.search(src.query, undefined, 40); }
+        catch (e) {
+            if (g !== S.gen) { return; }
+            S.loading = false;
+            R("搜索「" + Diag.priv(src.query) + "」出错 " + errStr(e));
+            $("empty").innerHTML = T("搜索出错：{0}<br>按确认重试", esc(errStr(e))) + reportHtml(240);
+            Diag.incident("搜索出错：" + errStr(e));
+            return;
+        }
+        if (g !== S.gen) { return; }
+        S.loading = false;
+        S.items = withDur(page.items);
+        S.next = page.next;
+        S.total = page.total;
+        R("搜索「" + Diag.priv(src.query) + "」" + Math.round(performance.now() - t0) + "ms，" + S.items.length + " 个" + (page.next ? "，还有" : ""));
+        renderGrid();
+        if (!S.items.length) { $("empty").innerHTML = T("没搜到「{0}」。<br>按 ← 打开来源栏，再选「搜索」换个词。", esc(src.query)); }
+    }
+
+    S.sx = { focus: -1 };
+    function openSearchBox() {
+        S.screen = "search";
+        var list = Store.searches(), html = "";
+        list.forEach(function (q, i) { html += "<span class='q' id='sq" + i + "'>" + esc(q) + "</span>"; });
+        $("sx-recent").innerHTML = html;
+        $("sx-lab").style.display = list.length ? "block" : "none";
+        $("sx-q").value = "";
+        S.sx.focus = -1;
+        $("sx").classList.add("on");
+        setTimeout(function () { $("sx-q").focus(); }, 50);
+    }
+    function closeSearchBox() {
+        $("sx").classList.remove("on");
+        try { document.activeElement.blur(); } catch (e) {}
+        S.screen = "home";
+    }
+    function runSearch(q) {
+        q = q.trim();
+        if (!q) { return; }
+        Store.addSearch(q);
+        closeSearchBox();
+        S.zone = "grid";
+        openSource({ id: "__search:" + q, title: T("搜索「{0}」", q), kind: "search", query: q });
+    }
+    $("sx-q").addEventListener("keydown", function (e) {
+        if (e.keyCode !== 13 && e.keyCode !== 65376) { return; }
+        e.preventDefault();
+        e.stopPropagation();      // 不然冒泡到 document 的按键处理
+        runSearch(this.value);
+    });
+    function searchKey(k) {
+        var inInput = document.activeElement === $("sx-q"), n = Store.searches().length;
+        if (k === 10009) {
+            /* 输入框里按返回先收起键盘（同网页登录框） */
+            if (inInput) { document.activeElement.blur(); return; }
+            closeSearchBox();
+            return;
+        }
+        if (inInput) { if (k === 40 && n) { document.activeElement.blur(); S.sx.focus = 0; drawRecent(); } return; }
+        if (k === 37 && S.sx.focus > 0) { S.sx.focus--; }
+        else if (k === 39 && S.sx.focus + 1 < n) { S.sx.focus++; }
+        else if (k === 40 && S.sx.focus < 0 && n) { S.sx.focus = 0; }
+        else if (k === 38) { S.sx.focus = -1; $("sx-q").focus(); }
+        else if (k === 13) { if (S.sx.focus >= 0) { runSearch(Store.searches()[S.sx.focus]); } else { $("sx-q").focus(); } return; }
+        drawRecent();
+    }
+    function drawRecent() {
+        document.querySelectorAll("#sx-recent .q").forEach(function (el, i) { el.classList.toggle("focus", i === S.sx.focus); });
+    }
+
+    /* ---------- 账号（accounts.js）：切换、添加、退出 ---------- */
+
+    S.acct = { focus: 0, rows: [], outAt: 0 };
+    /* ---------- 设置：诊断日志（diag.js）、自动更新（update.js）。属于这台电视，不跟账号走。按下去的回答是下面那两行字变了 ---------- */
+
+    S.opts = { rows: [], focus: 0, note: "" };
+    function hhmm(t) { var d = new Date(t), h = d.getHours(), m = d.getMinutes(); return (h < 10 ? "0" : "") + h + ":" + (m < 10 ? "0" : "") + m; }
+    function diagLine() {
+        if (S.opts.note) { return S.opts.note; }
+        var st = Diag.status();
+        if (!st.enabled) { return T("诊断日志关着：什么都不记录，也不上传"); }
+        var parts = [T("这台电视的编号 {0}", st.device)];
+        if (!st.configured) { parts.push(T("这个版本没有接收地址，不会上传")); }
+        if (st.sending) { parts.push(T("正在上传…")); }
+        else if (st.last) { parts.push(st.last.ok ? T("{0} 已上传（编号 {1}）", hhmm(st.last.at), st.last.id) : T("{0} 没传上：{1}", hhmm(st.last.at), T(st.last.why))); }
+        return parts.join(" · ");
+    }
+    function updateLine() {
+        var u = Update.status();
+        var parts = [u.running === u.packaged ? T("正在运行 {0}", u.running) : T("正在运行 {0}（装的是 {1}）", u.running, u.packaged)];
+        if (!u.supported) { parts.push(T("这台电视验不了签名，不能自动更新")); }
+        else if (u.checking) { parts.push(T("正在检查…")); }
+        else if (u.downloaded) { parts.push(T("{0} 已下载，下次打开生效", u.downloaded)); }
+        else if (u.lastCheck) { parts.push(u.lastError ? T("{0} 查过，没查成", hhmm(u.lastCheck)) : T("{0} 查过，没有新版本", hhmm(u.lastCheck))); }
+        return parts.join(" · ");
+    }
+    function optsRows() {
+        function redraw() { if (S.screen === "opts") { drawOpts(); } }
+        return [
+            { label: Diag.enabled() ? T("诊断日志：开") : T("诊断日志：关"), act: function () {
+                Diag.setEnabled(!Diag.enabled());
+                R("诊断日志=" + (Diag.enabled() ? "开" : "关"));
+            } },
+            { label: T("上传诊断日志"), act: function () {
+                if (!Diag.enabled()) { S.opts.note = T("诊断日志关着，先把它打开"); return; }
+                Diag.upload(redraw);
+            } },
+            { label: T("检查更新"), sep: true, act: function () { Update.check(redraw); } },
+            /* 按两下才清（一家人共用一个账号时，别手滑） */
+            { label: T("清空播放记录"), sep: true, act: function () {
+                if (Date.now() - (S.opts.clearAt || 0) > 3000) { S.opts.clearAt = Date.now(); toast(T("再按一次确认键，清空播放记录")); return; }
+                S.opts.clearAt = 0;
+                R("清空播放记录（" + Store.history().length + " 条）");
+                Store.clearHistory();
+                toast(T("播放记录清空了"));
+            } }
+        ];
+    }
+    function drawOpts() {
+        S.opts.rows = optsRows();
+        $("opts-list").innerHTML = S.opts.rows.map(function (r, i) {
+            return "<div class='ai" + (r.sep ? " sep" : "") + (i === S.opts.focus ? " focus" : "") + "'>" + esc(r.label) + "</div>";
+        }).join("");
+        $("opts-diag").textContent = diagLine();
+        $("opts-update").textContent = updateLine();
+        var qr = reportQr();
+        $("opts-qr").innerHTML = qr;
+        $("opts-qr").style.display = qr ? "block" : "none";
+    }
+    function openOpts() {
+        S.screen = "opts";
+        S.opts.focus = 0;
+        S.opts.note = "";
+        drawOpts();
+        $("opts").classList.add("on");
+    }
+    function closeOpts() { $("opts").classList.remove("on"); S.screen = "home"; }
+    function optsKey(k) {
+        if (k === 10009) { closeOpts(); return; }
+        if (k === 38) { S.opts.focus = Math.max(0, S.opts.focus - 1); }
+        else if (k === 40) { S.opts.focus = Math.min(S.opts.rows.length - 1, S.opts.focus + 1); }
+        else if (k === 13) { S.opts.note = ""; S.opts.rows[S.opts.focus].act(); }
+        else { return; }
+        drawOpts();
+    }
+
+    function acctName(a, i) { return a.name || T("账号 {0}", i + 1); }
+    function openAcct() {
+        S.screen = "acct";
+        var cur = Accounts.active(), rows = [];
+        Accounts.list().forEach(function (a, i) {
+            rows.push({ label: acctName(a, i), ck: a.id === cur.id, act: function () { switchAcct(a); } });
+        });
+        rows.push({ label: T("+ 添加账号"), sep: true, act: addAcct });
+        rows.push({ label: T("退出 {0}", acctName(cur, Accounts.list().indexOf(cur))), act: signOut });
+        S.acct.rows = rows;
+        S.acct.focus = rows.findIndex(function (r) { return r.ck; });
+        S.acct.outAt = 0;
+        drawAcct();
+        $("acct").classList.add("on");
+    }
+    function drawAcct() {
+        $("acct-list").innerHTML = S.acct.rows.map(function (r, i) {
+            return "<div class='ai" + (r.sep ? " sep" : "") + (i === S.acct.focus ? " focus" : "") + "'><span class='ck'>" + (r.ck ? "✓" : "") + "</span>" + esc(r.label) + "</div>";
+        }).join("");
+    }
+    function closeAcct() { $("acct").classList.remove("on"); S.screen = "home"; }
+    function acctKey(k) {
+        if (k === 10009) { closeAcct(); return; }
+        if (k === 38) { S.acct.focus = Math.max(0, S.acct.focus - 1); }
+        else if (k === 40) { S.acct.focus = Math.min(S.acct.rows.length - 1, S.acct.focus + 1); }
+        else if (k === 13) { S.acct.rows[S.acct.focus].act(); return; }
+        else { return; }
+        drawAcct();
+    }
+    /* 切换 / 添加都是记下新的当前账号、重新加载页面（用它的库起后台线程） */
+    function switchAcct(a) {
+        if (a.id === Accounts.active().id) { closeAcct(); return; }
+        R("切换账号 " + Accounts.active().id + " → " + a.id + "（" + Diag.priv(a.name) + "）");
+        Accounts.switchTo(a.id);
+        Store.once(T("已切换到 {0}", a.name));
+        location.reload();
+    }
+    function addAcct() {
+        var a = Accounts.add();
+        R("添加账号 " + a.id + "（库 " + a.storage + "），去扫码");
+        location.reload();
+    }
+    /* 退出：按两下。先让 Telegram 作废这个会话（手机上「设备」里那条也没了），再从电视上拿掉这个人的记录 */
+    function signOut() {
+        var cur = Accounts.active();
+        if (Date.now() - S.acct.outAt > 3000) { S.acct.outAt = Date.now(); toast(T("再按一次确认，退出 {0}", acctName(cur, Accounts.list().indexOf(cur)))); return; }
+        R("退出账号 " + cur.id + "（" + Diag.priv(cur.name) + "）");
+        TG.logout().then(function () { Accounts.remove(cur.id); location.reload(); });
+    }
+    /* 扫码登录时按返回：在添加账号就取消（切回原来的），是哪个账号的会话没了就换到别的账号；电视上只有这一个账号才退出应用 */
+    function leaveLogin() {
+        var a = Accounts.active(), others = Accounts.list().filter(function (x) { return x.id !== a.id && x.userId; });
+        if (!others.length) { exitApp(); return; }
+        if (!a.userId) { R("取消添加账号 " + a.id); Accounts.remove(a.id); }
+        else { R(a.id + "（" + Diag.priv(a.name) + "）要重新扫码，先换到 " + others[0].id); Accounts.switchTo(others[0].id); }
+        location.reload();
+    }
+
+    /* ---------- 网页列表当来源（web.js）：群里发的收藏、分类链接 ---------- */
+
+    /* 这个群里这次找到的列表链接，替换掉上次存的；新出现的提示一下 */
+    function syncWebSources(group, lists) {
+        var before = {};
+        Store.webSources().forEach(function (s) { before[s.id] = true; });
+        var mine = lists.map(function (l) { return { id: "web:" + l.url, title: l.title, kind: "web", url: l.url }; });
+        Store.setWebSources(String(group.id), mine);
+        var added = mine.filter(function (s) { return !before[s.id]; });
+        S.sources = Store.webSources().concat(S.sources.filter(function (s) { return s.kind !== "web"; }));
+        renderRail();
+        if (added.length) {
+            R("群「" + Diag.priv(group.title) + "」里的列表链接 → 来源：" + added.map(function (s) { return Diag.priv(s.title) + " " + Diag.priv(s.url); }).join("，"));
+            toast(added.length > 1 ? T("左边多了 {0} 个来源，按 ← 打开", added.length) : T("左边多了一个来源「{0}」，按 ← 打开", added[0].title), 5000);
+        }
+    }
+
+    /* 发过列表链接的群，跟着来源栏一起刷新（开机、打开来源栏、每 5 分钟）：手机上刚发的链接，电视上按一下 ← 就出来，
+     * 不用先进那个群（第一版只在打开那个群时才读，用户发完公开链接电视上一直没出来，2026-10-02） */
+    async function refreshWebSources(dialogs) {
+        var groups = Store.webSourceGroups();
+        for (var i = 0; i < groups.length; i++) {
+            var d = dialogs.filter(function (x) { return String(x.id) === groups[i]; })[0];
+            if (!d) { continue; }
+            try {
+                var ls = await TG.links(d.id, 40);
+                syncWebSources(d, ls.filter(function (l) { return l.kind === "weblist"; }));
+            } catch (e) { R("刷新群「" + Diag.priv(d.title) + "」的列表链接出错 " + errStr(e)); }
+        }
+    }
+
+    function webItem(x) {
+        return {
+            kind: "web", key: "web:" + x.url, fileKey: "web:" + x.url, url: x.url, site: new URL(x.url).hostname.replace(/^www\./, ""),
+            doc: null, image: x.image, title: x.title || x.url, caption: "", size: 0, duration: x.duration || 0, date: null,
+            hasCover: false, info: { year: "", rating: "", director: "" }
+        };
+    }
+
+    async function openWebList(src, g, t0, opts) {
+        var page;
+        try {
+            page = await Web.list(src.url);
+        } catch (e) {
+            if (g !== S.gen) { return; }
+            S.loading = false;
+            $("src-sub").textContent = "";
+            if (e.needLogin) {
+                R("列表「" + Diag.priv(src.title) + "」要登录：" + errStr(e) + (S.loggedIn[src.id] ? "（刚登录成功过 —— 登录状态没带上）" : ""));
+                if (S.loggedIn[src.id]) {
+                    $("empty").innerHTML = T("登录成功了，但还是看不到这个列表。<br>电视可能带不上这个网站的登录状态（日志里有详情）。") + reportHtml(240);
+                    Diag.incident("网页列表登录成功了还是看不到：" + errStr(e));
+                } else {
+                    $("empty").innerHTML = T("这个列表要登录一次才能看（查账号编号）。<br>按确认登录");
+                    if (!opts.quiet) { webLogin(src); }
+                }
+                return;
+            }
+            R("列表「" + Diag.priv(src.title) + "」出错 " + errStr(e));
+            $("empty").innerHTML = T("读不到这个列表：{0}<br>按确认重试", esc(errStr(e))) + reportHtml(240);
+            Diag.incident("读不到网页列表：" + errStr(e));
+            return;
+        }
+        if (g !== S.gen) { return; }
+        S.loading = false;
+        S.items = page.items.map(webItem);
+        S.next = page.next;
+        S.total = page.total || S.items.length;
+        var best = -1, at = 0;
+        S.items.forEach(function (it, i) {
+            var p = Store.getProgress(it.fileKey);
+            if (p && p.at > at) { at = p.at; best = i; }
+        });
+        S.focus = viewIndex(best >= 0 ? best : 0);
+        R("列表「" + Diag.priv(src.title) + "」" + Math.round(performance.now() - t0) + "ms（" + page.how + "），" + S.items.length + "/" + (page.total || "?") + " 个" + (page.next ? "，有下一页" : ""));
+        renderGrid();
+    }
+
+    /* ---------- 网页登录（有的站的列表要登录）：两个输入框，遥控器调出屏幕键盘输入，键盘上的「完成」跳下一格 / 提交。
+     * 密码不存、不写日志；登录状态是网站的 cookie，留在电视的浏览器引擎里。 ---------- */
+
+    S.loggedIn = {};
+    function webLogin(src) {
+        S.screen = "weblogin";
+        S.loginSrc = src;
+        $("wl-site").textContent = new URL(src.url).hostname;
+        $("wl-msg").textContent = "";
+        $("wl-user").value = "";
+        $("wl-pass").value = "";
+        $("wl").classList.add("on");
+        setTimeout(function () { $("wl-user").focus(); }, 50);
+    }
+    function closeWebLogin() {
+        $("wl").classList.remove("on");
+        try { document.activeElement.blur(); } catch (e) {}
+        S.screen = "home";
+    }
+    function submitWebLogin() {
+        var src = S.loginSrc, user = $("wl-user").value.trim(), pass = $("wl-pass").value;
+        if (!user) { $("wl-user").focus(); return; }
+        if (!pass) { $("wl-pass").focus(); return; }
+        $("wl-msg").textContent = T("正在登录…");
+        try { document.activeElement.blur(); } catch (e) {}
+        var t0 = performance.now();
+        Web.login(src.url, user, pass).then(function (r) {
+            R("登录 " + Diag.priv(new URL(src.url).hostname) + "：" + (r.ok ? "成功，账号编号 " + Diag.priv(r.userId) + (r.favs != null ? "，收藏 " + r.favs + " 个" : "") : "失败 " + Diag.priv(r.msg)) + "，" + Math.round(performance.now() - t0) + "ms");
+            if (!r.ok) { $("wl-msg").textContent = T("登录失败：{0}", r.msg); $("wl-pass").value = ""; $("wl-pass").focus(); return; }
+            S.loggedIn[src.id] = true;
+            closeWebLogin();
+            toast(T("登录成功"));
+            openSource(src);
+        }).catch(function (e) {
+            R("登录出错 " + errStr(e));
+            $("wl-msg").textContent = T("登录出错：{0}", errStr(e));
+        });
+    }
+    /* 13 = 确认，65376 = 屏幕键盘上的「完成」 */
+    ["wl-user", "wl-pass"].forEach(function (id) {
+        $(id).addEventListener("keydown", function (e) {
+            if (e.keyCode !== 13 && e.keyCode !== 65376) { return; }
+            e.preventDefault();
+            e.stopPropagation();      // 不然冒泡到 document 的按键处理，又提交一次
+            if (id === "wl-user" && this.value.trim()) { $("wl-pass").focus(); }
+            else { submitWebLogin(); }
+        });
+    });
+    function webLoginKey(k) {
+        var inInput = document.activeElement && document.activeElement.tagName === "INPUT";
+        if (k === 10009) {
+            /* 输入框里按返回先收起键盘、不退出；不在输入框里再按一次才退出 */
+            if (inInput) { document.activeElement.blur(); return; }
+            closeWebLogin();
+            return;
+        }
+        if (inInput) { return; }
+        if (k === 38) { $("wl-user").focus(); }
+        else if (k === 40) { $("wl-pass").focus(); }
+        else if (k === 13) { if ($("wl-user").value.trim() && $("wl-pass").value) { submitWebLogin(); } else { $(!$("wl-user").value.trim() ? "wl-user" : "wl-pass").focus(); } }
+    }
+
+    /* ---------- 网格 ---------- */
+
+    /* Filtro por tipo de archivo. "all" muestra todo (también enlaces web). */
+    var FILTERS = [{ id: "all", key: "全部" }, { id: "video", key: "视频" }, { id: "music", key: "音乐" }, { id: "pdf", key: "PDF" }];
+    function filterLabel(f) { return f.id === "pdf" ? "PDF" : T(f.key); }
+    function matchFilter(it) {
+        return S.filter === "all" ? true : S.filter === "video" ? it.kind === "video" : it.kind === S.filter;
+    }
+    /* Un índice de S.items pasado a índice de S.view (el filtro puede esconder lo de antes). */
+    function viewIndex(i) {
+        if (S.filter === "all") { return Math.max(0, i); }
+        var c = 0;
+        for (var j = 0; j < i && j < S.items.length; j++) { if (matchFilter(S.items[j])) { c++; } }
+        return c;
+    }
+    function renderFilters() {
+        var html = "";
+        FILTERS.forEach(function (f, i) {
+            var cls = "chip" + (S.filter === f.id ? " sel" : "") + (S.filterZone && i === S.filterFocus ? " focus" : "");
+            html += "<span class='" + cls + "'>" + esc(filterLabel(f)) + "</span>";
+        });
+        $("filters").innerHTML = html;
+    }
+    function setFilter(id) {
+        if (S.filter === id) { return; }
+        S.filter = id;
+        S.focus = 0;
+        S.gridOff = 0;
+        renderGrid();
+        renderFilters();
+    }
+    /* Entrar en la fila de filtros (el cursor se pone en el tipo activo). */
+    function openFilterZone() {
+        S.filterZone = true;
+        S.filterFocus = 0;
+        for (var i = 0; i < FILTERS.length; i++) { if (FILTERS[i].id === S.filter) { S.filterFocus = i; } }
+        renderFilters();
+        updateFocus();
+    }
+
+    function cardHtml(it, i) {
+        var p = Store.getProgress(it.fileKey);
+        var x = LEFT + (i % COLS) * (CARD_W + GAP_X), y = TOP + Math.floor(i / COLS) * PITCH_Y;
+        var th = S.thumbs[it.fileKey];
+        var ext = it.asFile && /\.(mkv|webm|mov|m4v)$/i.exec(it.fileName || ""), mu = it.kind === "music", pdf = it.kind === "pdf";
+        var what = mu ? [it.performer, (it.ext || "").toUpperCase(), fmtSize(it.size)].filter(Boolean).join(" · ") :
+            pdf ? ["PDF", fmtSize(it.size)].filter(Boolean).join(" · ") :
+            it.kind === "web" ? T("网页 · {0}", it.site) : (ext ? ext[1].toUpperCase() + " · " : "") + fmtSize(it.size);
+        /* 搜索结果、播放记录：写是哪个群的；播放记录的日期是放的那天 */
+        var mixedSrc = S.src && (S.src.kind === "search" || S.src.kind === "history");
+        var meta = [mixedSrc ? it.chatTitle : "", what, fmtDate(it.playedAt ? new Date(it.playedAt) : it.date)].filter(Boolean).join(" · ");
+        var now = mu && S.mu.item && S.mu.item.fileKey === it.fileKey;
+        if (p && p.done) { meta = T("看完了 · {0}", meta); }
+        else if (p && p.t > 0) { meta = T("看到 {0} · {1}", fmtTime(p.t), meta); }
+        return "<div class='card' id='c" + i + "' style='left:" + x + "px;top:" + y + "px'>" +
+            "<div class='thumb" + (th && (th.kind === "poster" || th.kind === "art") ? " hasposter" : "") + "'><div class='ph' style='" + phStyle(it.title) + "'><span>" + esc(it.title) + "</span></div>" + (th && th.url ? coverHtml(it, th) : "") +
+            (now ? "<div class='now'>" + esc(T("♪ 正在放")) + "</div>" : "") +
+            (it.duration ? "<div class='dur'>" + fmtTime(it.duration) + "</div>" : "") +
+            (p && p.t > 0 && p.d ? "<div class='prog' style='width:" + Math.min(100, p.t / p.d * 100).toFixed(1) + "%'></div>" : "") +
+            "</div><div class='title'>" + esc(it.title) + "</div><div class='meta'>" + esc(meta) + "</div></div>";
+    }
+
+    /* 片名卡片的底色：按片名算一个色相，深色渐变（用户嫌纯文字卡片不好看，2026-10-01） */
+    function phStyle(title) {
+        var h = 0;
+        for (var i = 0; i < title.length; i++) { h = (h * 31 + title.charCodeAt(i)) % 360; }
+        return "background:linear-gradient(135deg,hsl(" + h + ",45%,26%),hsl(" + ((h + 40) % 360) + ",50%,12%))";
+    }
+
+    function renderGrid() {
+        S.view = S.items.filter(matchFilter);
+        var html = "";
+        S.view.forEach(function (it, i) { html += cardHtml(it, i); });
+        $("grid").innerHTML = html;
+        $("grid").style.height = TOP + Math.ceil(S.view.length / COLS) * PITCH_Y + "px";
+        if (S.loading && !S.items.length) {
+            $("empty").innerHTML = T("加载中…");
+        } else if (!S.view.length) {
+            $("empty").innerHTML = S.items.length ? T("这里没有这种类型的文件") :
+                T("这里没有能放的内容。<br>在手机上找到想看的视频、音乐或 PDF，长按 → <b>转发</b> → 选这个群，回到电视上按确认刷新。");
+        } else {
+            $("empty").innerHTML = "";
+        }
+        if (S.src && !S.loading) {
+            if (S.filter !== "all") {
+                $("src-sub").textContent = T("共 {0} 个", S.view.length) + (S.items.length < S.total ? T("（已加载 {0}）", S.items.length) : "");
+            } else {
+                var mixed = S.items.some(function (it) { return it.kind === "music"; });
+                var withPdf = S.items.some(function (it) { return it.kind === "pdf"; });
+                $("src-sub").textContent = S.total ? (withPdf ? T("共 {0} 个视频、音乐和 PDF", S.total) : mixed ? T("共 {0} 个视频和音乐", S.total) : T("共 {0} 个视频", S.total)) + (S.items.length < S.total ? T("（已加载 {0}）", S.items.length) : "") : "";
+            }
+        }
+        renderFilters();
+        updateFocus();
+    }
+
+    function updateFocus() {
+        var old = document.querySelector(".card.focus");
+        if (old) { old.classList.remove("focus"); }
+        if (!S.view.length) { return; }
+        S.focus = Math.max(0, Math.min(S.focus, S.view.length - 1));
+        var el = $("c" + S.focus);
+        if (el && S.zone === "grid" && !S.filterZone) { el.classList.add("focus"); }
+        var row = Math.floor(S.focus / COLS), rows = Math.ceil(S.view.length / COLS);
+        /* 只在要选的那一排露不全时才滚，滚到刚好露全为止；看得见的就只挪焦点、画面不动（第一版焦点那一排永远停在第二排的位置：
+         * 想选第一排中间那个，一按上键整排滑下来，眼睛还得跟着找）。
+         * 卡片 450 高，上面留 TOP（描边），下面留 10 */
+        var y = TOP + row * PITCH_Y, off = S.gridOff || 0;
+        if (y - TOP < off) { off = y - TOP; }
+        else if (y + CARD_H + 10 > off + VIEW_H) { off = y + CARD_H + 10 - VIEW_H; }
+        off = Math.max(0, Math.min(off, Math.max(0, TOP + rows * PITCH_Y - VIEW_H + 30)));
+        S.gridOff = off;
+        $("grid").style.transform = "translateY(" + (-off) + "px)";
+        wantThumbs(Math.max(0, (row - 1) * COLS), Math.min(S.view.length, (row + 4) * COLS));
+        if (row >= rows - 2) { loadMore(); }
+    }
+
+    /* 封面：只取焦点附近几行，同时最多 3 个。顺带把文件所在的数据中心连上，点播放时第一块就快了。 */
+    function wantThumbs(a, b) {
+        for (var i = a; i < b; i++) {
+            var it = S.view[i];
+            if (it && S.thumbs[it.fileKey] === undefined && S.thumbQ.indexOf(it) < 0) { S.thumbQ.push(it); }
+        }
+        pumpThumbs();
+    }
+    function setThumb(it, c) {
+        /* 海报先做一张「缩小再放大」的背景（见 posterBg），做好了再放上去 */
+        if ((c.kind === "poster" || c.kind === "art") && !c.bg) {
+            posterBg(c.url).then(function (bg) { c.bg = bg || "none"; setThumb(it, c); });
+            return;
+        }
+        S.thumbs[it.fileKey] = c;
+        var i = S.view.indexOf(it), el = i >= 0 && $("c" + i);
+        if (el) {
+            var th = el.querySelector(".thumb");
+            th.querySelectorAll("img, .pbg").forEach(function (n) { n.remove(); });
+            th.classList.toggle("hasposter", c.kind === "poster" || c.kind === "art");
+            th.insertAdjacentHTML("beforeend", coverHtml(it, c));
+        }
+    }
+
+    /* 海报是竖的、卡片是横的：海报完整居中，两边用同一张海报铺底（用户 2026-10-01：卡片上不要字，只放海报，片名看卡片下面）。
+     * 底图是把海报画进 24×14 的小画布再拉伸 —— 缩小本身就是模糊，不用 CSS 滤镜（抖音项目实测滤镜在这台电视上很贵）。 */
+    function coverHtml(it, c) {
+        if (c.kind !== "poster" && c.kind !== "art") { return "<img src='" + c.url + "'>"; }
+        return (c.bg && c.bg !== "none" ? "<div class='pbg' style='background-image:url(" + c.bg + ")'></div>" : "") +
+            "<img class='" + (c.kind === "art" ? "aimg" : "pimg") + "' src='" + c.url + "'>";
+    }
+
+    function posterBg(url) {
+        return new Promise(function (resolve) {
+            var img = new Image();
+            img.onload = function () {
+                try {
+                    var c = document.createElement("canvas");
+                    c.width = 24; c.height = 14;
+                    var g = c.getContext("2d"), s = Math.max(24 / img.width, 14 / img.height);
+                    g.drawImage(img, (24 - img.width * s) / 2, (14 - img.height * s) / 2, img.width * s, img.height * s);
+                    resolve(c.toDataURL("image/png"));
+                } catch (e) { resolve(null); }
+            };
+            img.onerror = function () { resolve(null); };
+            img.src = url;
+        });
+    }
+
+    /* 从片子中间解一帧当封面：一次一个，只在主页、没在播放的时候做 */
+    S.coverQ = []; S.coverBusy = false; S.coverDone = {}; S.coverLogs = 0;
+    function wantCover(it, why) {
+        if (S.coverDone[it.fileKey] || S.coverQ.some(function (q) { return q.it === it; })) { return; }
+        S.coverQ.push({ it: it, why: why });
+        pumpCover();
+    }
+
+    /* 兜底：电影去维基百科找海报；不是电影或者没找到 → 记下「没有封面」，只显示片名卡片 */
+    function fallbackPoster(it) {
+        /* 当文件发的没有时长：1GB 以上的当电影 */
+        if ((it.duration || (it.asFile && it.size > 1073741824 ? 3600 : 0)) < 2400 || Store.noPoster(it.fileKey)) { Cover.keepNone(it); return; }
+        Cover.poster(it).then(function (ps) {
+            if (ps) { R("海报「" + Diag.priv(it.title) + "」← " + Diag.priv(ps.info)); setThumb(it, ps); }
+            else { Store.markNoPoster(it.fileKey); Cover.keepNone(it); R("海报：维基百科没找到对得上的「" + Diag.priv(it.title) + "」"); }
+        }).catch(function (e) { R("海报出错「" + Diag.priv(it.title) + "」" + errStr(e)); });
+    }
+    function pumpCover() {
+        if (S.coverBusy || !S.coverQ.length || S.screen !== "home") { return; }
+        var job = S.coverQ.shift(), it = job.it;
+        S.coverBusy = true;
+        if (S.coverLogs < 4) { R("封面帧开始「" + Diag.priv(it.title) + "」" + job.why); }
+        Cover.grab(it).then(function (r) {
+            S.coverDone[it.fileKey] = true;
+            setThumb(it, { url: r.url, kind: "frame" });
+            R("封面帧「" + Diag.priv(it.title) + "」" + job.why + " → " + r.info);
+        }).catch(function (e) {
+            if (e && e.cancelled) { S.coverQ.unshift(job); return; }
+            S.coverDone[it.fileKey] = true;
+            Store.markNoFrame(it.fileKey);
+            if (S.coverLogs++ < 4) { R("封面帧失败「" + Diag.priv(it.title) + "」" + job.why + "：" + errStr(e)); }
+            fallbackPoster(it);
+        }).then(function () { S.coverBusy = false; pumpCover(); });
+    }
+
+    /* 图片缩到 16×9 算平均亮度（0–255）。blob: 地址同源，画布读得出来（视频帧读不出来，图片可以） */
+    function darkness(url) {
+        return new Promise(function (resolve) {
+            var img = new Image();
+            img.onload = function () {
+                try {
+                    var c = document.createElement("canvas");
+                    c.width = 16; c.height = 9;
+                    var g = c.getContext("2d");
+                    g.drawImage(img, 0, 0, 16, 9);
+                    var d = g.getImageData(0, 0, 16, 9).data, sum = 0;
+                    for (var i = 0; i < d.length; i += 4) { sum += 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]; }
+                    resolve(sum / (d.length / 4));
+                } catch (e) { resolve(255); }
+            };
+            img.onerror = function () { resolve(0); };
+            img.src = url;
+        });
+    }
+
+    /* 网页链接的封面：本地缓存 → Telegram 给链接生成的预览图 → 页面的 og:image（顺带拿 og:title 当片名）。
+     * 不截帧、不找海报 —— 那两样都要读 Telegram 上的文件。 */
+    function fetchImage(url) {
+        return fetch(url).then(function (r) {
+            if (!r.ok) { throw new Error("封面图 " + r.status); }
+            return r.arrayBuffer();
+        });
+    }
+    function webThumb(it) {
+        return Cover.cached(it).then(function (c) {
+            if (c) { if (c.kind !== "none") { setThumb(it, c); } return; }
+            /* 列表里来的：列表页上就有封面图 */
+            if (it.image) {
+                return fetchImage(it.image).then(function (b) {
+                    setThumb(it, { url: URL.createObjectURL(new Blob([b], { type: "image/jpeg" })), kind: "thumb" });
+                    Cover.keepThumb(it, b);
+                });
+            }
+            var first = it.doc ? TG.thumb(it, CARD_W).catch(function () { return null; }) : Promise.resolve(null);
+            return first.then(function (th) {
+                if (th) { setThumb(it, { url: th.url, kind: "thumb" }); Cover.keepThumb(it, th.bytes); return; }
+                return Web.meta(it.url).then(function (m) {
+                    if (m && m.title && it.title === it.site) { it.title = m.title; retitle(it); }
+                    if (!m || !m.image) { Cover.keepNone(it); return; }
+                    return fetchImage(m.image).then(function (b) {
+                        setThumb(it, { url: URL.createObjectURL(new Blob([b], { type: "image/jpeg" })), kind: "thumb" });
+                        Cover.keepThumb(it, b);
+                    });
+                });
+            });
+        });
+    }
+    function retitle(it) {
+        var i = S.view.indexOf(it), el = i >= 0 && $("c" + i);
+        if (el) { el.querySelector(".title").textContent = it.title; el.querySelector(".ph span").textContent = it.title; }
+    }
+
+    function pumpThumbs() {
+        while (S.thumbBusy < 3 && S.thumbQ.length) {
+            var it = S.thumbQ.shift();
+            if (S.thumbs[it.fileKey] !== undefined) { continue; }
+            S.thumbs[it.fileKey] = null;
+            S.thumbBusy++;
+            (function (it) {
+                /* 顺序（用户 2026-10-01：群里的优先，网上搜的兜底）：频道给视频设的封面 → Telegram 缩略图（不太暗的话）
+                 * → 从片子里解一帧 → 电影（≥40 分钟）的维基百科海报 → 片名卡片。
+                 * 定下来的结果（包括「没有」）都存在电视上，下次直接用。缓存里存的不是频道封面、而这条有频道封面的（以前没读这个字段），重新取。 */
+                (it.kind === "web" ? webThumb(it) : it.kind === "music" ? musicArt(it) : it.kind === "pdf" ? pdfThumb(it) : Cover.cached(it).then(function (c) {
+                    if (c && (c.kind === "cover" || !it.hasCover)) { if (c.kind !== "none") { setThumb(it, c); } return; }
+                    var first = it.hasCover ? TG.cover(it, CARD_W).catch(function (e) { R("频道封面出错「" + Diag.priv(it.title) + "」" + errStr(e)); return null; }) : Promise.resolve(null);
+                    return first.then(function (cv) {
+                        if (cv) {
+                            setThumb(it, { url: cv.url, kind: "cover" });
+                            Cover.keepThumb(it, cv.bytes, "cover");
+                            if ((S.coverLogged = (S.coverLogged || 0) + 1) <= 3) { R("频道封面「" + Diag.priv(it.title) + "」" + cv.w + "x" + cv.h + (c ? "（替掉缓存里的 " + c.kind + "）" : "")); }
+                            return;
+                        }
+                        if (c) { if (c.kind !== "none") { setThumb(it, c); } return; }
+                        return TG.thumb(it, CARD_W).then(function (th) {
+                            if (!th) { return "没有缩略图"; }
+                            return darkness(th.url).then(function (lum) {
+                                /* 不少片子的缩略图是开头那一帧 —— 黑的（手机上也是黑块） */
+                                if (lum < 24) { return "缩略图太暗（亮度 " + Math.round(lum) + "）"; }
+                                setThumb(it, { url: th.url, kind: "thumb" });
+                                Cover.keepThumb(it, th.bytes);
+                                return null;
+                            });
+                        }).then(function (why) {
+                            if (!why) { return; }
+                            if (!Store.noFrame(it.fileKey)) { wantCover(it, why); }
+                            else { fallbackPoster(it); }
+                        });
+                    });
+                })).catch(function (e) { R("封面出错「" + Diag.priv(it.title) + "」" + errStr(e)); }).then(function () { S.thumbBusy--; pumpThumbs(); });
+            })(it);
+        }
+    }
+
+    /* ---------- 播放器 ---------- */
+
+    var mse = Player.create(video, function (s) { Log.report("player", s); }, onPlayerState);
+    var webPlayer = Web.player(video, function (s) { Log.report("web", s); }, onPlayerState);
+    var player = mse;      // 当前在用的那个：Telegram 的文件 → mse，网页链接 → webPlayer
+    var saveTimer = 0, ovTick = 0, subTimer = 0;
+
+    function onPlayerState(phase, msg, known) {
+        if (S.screen !== "player") { return; }
+        if (phase === "loading") { spin(true, T("正在打开…")); }
+        else if (phase === "buffering") { spin(true, T("缓冲中…")); }
+        else if (phase === "playing") { spin(false); }
+        else if (phase === "note") { toast(msg, 5000); }
+        else if (phase === "ended") { onEnded(); }
+        else if (phase === "error") { showError(msg, known); }
+    }
+
+    function spin(on, text) { $("spin").classList.toggle("on", !!on); $("spin-text").textContent = text || ""; }
+
+    /* opts.reopen：同一部片在当前位置重开（换音轨），字幕、菜单的状态留着 */
+    async function play(it, opts) {
+        if (!it) { return; }
+        if (!opts || !opts.reopen) { remember(it); }
+        if (it.kind === "music") { playMusic(it); return; }
+        if (it.kind === "pdf") { openPdf(it); return; }
+        if (music.current()) { stopMusic("放视频"); }
+        opts = opts || {};
+        var again = !!opts.reopen && S.playing === it;
+        S.screen = "player";
+        S.playing = it;
+        S.pending = null;
+        hideUpnext();
+        closeMenu();
+        $("home").classList.add("hide");
+        $("player").classList.add("on");
+        $("perr").style.display = "none";
+        $("seekhint").style.display = "none";
+        $("ov-title").textContent = it.title;
+        if (!again) { resetSubs(it); }
+        showOverlay();
+        spin(true, again ? T("换音轨…") : T("正在打开…"));
+        var p = Store.getProgress(it.fileKey);
+        var startAt = again ? opts.startAt : p && !p.done && p.t > 20 ? p.t : 0;
+        await Cover.cancel();
+        if (!again) { findSubFiles(it); }
+        if (it.kind === "web") { playWeb(it, startAt); return; }
+        openMse(it, TG.source(it), startAt, opts, again);
+    }
+
+    /* 播放引擎（player.js）：Telegram 的片子，和网页链接里的 MP4（web.js 的 httpSource）。网页的 moov 缓存按地址 + 大小记：
+     * 同一个页面换了片子文件，大小多半跟着变，不会套上旧的 moov */
+    async function openMse(it, src, startAt, opts, again) {
+        player = mse;
+        var web = it.kind === "web", mkey = web ? it.fileKey + "|" + src.size : it.fileKey;
+        var moov = await Store.getMoov(mkey);
+        if (S.playing !== it) { return; }
+        var pref = Store.getPrefs(it.fileKey);
+        if (!web) {
+            R((again ? "换音轨重开「" : "播放「") + Diag.priv(it.title) + "」" + fmtSize(it.size) + " " + fmtTime(it.duration) + (it.asFile ? "（文件 " + Diag.priv(it.fileName || it.mime) + "）" : "") +
+              (startAt ? "，从 " + fmtTime(startAt) + (again ? "" : " 接着放") : "") + (moov ? "，" + (moov.mkv ? "MKV 头" : "moov") + "有缓存" : "") + (opts.audio || pref.audio ? "，音轨 " + (opts.audio || pref.audio) : "") +
+              (it.alts && it.alts.length ? "，备选清晰度 " + it.alts.map(function (a) { return a.w + "x" + a.h + " " + (a.codec || "?") + " " + fmtSize(a.size); }).join(" / ") : ""));
+            if (startAt && !again) { toast(T("从 {0} 接着放", fmtTime(startAt))); }
+        } else if (moov) { R("moov 有缓存"); }
+        var t0 = performance.now();
+        player.open(src, {
+            startAt: startAt,
+            exact: again,
+            moov: moov,
+            audio: opts.audio || pref.audio,
+            onMoov: function (m) { Store.putMoov(mkey, m); },
+            onTracks: function (tr) { if (S.playing === it) { gotTracks(it, tr); } },
+            onSub: function (key, pts, dur, data, extra) {
+                var e = S.subs && S.subs.it === it && S.subs.emb[key];
+                /* 图形字幕（PGS）一个显示集几 KB 到几十 KB、一部片几千个，蓝光 remux 常带四五条：定下显示哪条之后只存那一条
+                 * （中途换到别的图形字幕轨时让播放器重读，见 applySub）。文字的都存，换轨马上有 */
+                if (e && (e.track.kind !== "image" || !S.subs.decided || S.subs.on === key)) { e.track.add(pts, dur, data, extra); }
+            }
+        }).then(function () {
+            if (S.playing !== it) { return; }
+            R("出画面 " + Math.round(performance.now() - t0) + "ms");
+            spin(false);
+            hideOverlaySoon();
+            /* 当文件发的片子，Telegram 不知道时长：记下来，网格上的卡片和续播进度条要用 */
+            if (it.asFile && player.duration()) { it.duration = player.duration(); Store.setDur(it.fileKey, it.duration); }
+        }).catch(function (e) {
+            if (S.playing === it) { showError(errStr(e)); }
+        });
+        clearInterval(saveTimer);
+        saveTimer = setInterval(saveProgress, 5000);
+        clearInterval(ovTick);
+        ovTick = setInterval(drawOverlay, 250);
+        clearInterval(subTimer);
+        subTimer = setInterval(function () { if (S.subR) { S.subR.tick(video.currentTime); } }, 100);
+    }
+
+    /* 网页链接。解析出来是 MP4 的不交给电视自己的播放器（video.src）：三星的播放器放 archive.org 的 MP4，一部出画面两秒后
+     * video error 2、一部直接 video error 4（2026-10-26 电视实测；桌面 Chrome 上都好好的）。走和 Telegram 的片子同一个播放引擎、
+     * 按段读；服务器不认按段读（Range）的才退回 video.src。HLS 照旧给 hls.js。 */
+    function playWeb(it, startAt) {
+        if (S.playing !== it) { return; }
+        R("播放网页「" + Diag.priv(it.title) + "」" + Diag.priv(it.url) + (startAt ? "，从 " + fmtTime(startAt) + " 接着放" : ""));
+        if (startAt) { toast(T("从 {0} 接着放", fmtTime(startAt))); }
+        spin(true, T("正在解析网页…"));
+        var t0 = performance.now();
+        Web.resolve(it.url).then(function (r) {
+            if (S.playing !== it || r.type !== "mp4") { return r; }
+            R("解析 " + Math.round(r.ms) + "ms（" + r.how + "）→ mp4 " + Diag.priv(Web.host(r.url)));
+            return Web.httpSource(r.url, r.size).then(function (src) {
+                if (S.playing !== it) { return null; }
+                R("MP4 走播放引擎：" + fmtSize(src.size) + "，探 " + src.probeMs + "ms" + (src.redirected ? "，跳到 " + Diag.priv(Web.host(src.redirected)) : "") + (src.sizeFrom ? "，大小取自" + src.sizeFrom : ""));
+                openMse(it, src, startAt, {}, false);
+                return null;
+            }, function (e) {
+                R("MP4 不能按段读（" + errStr(e) + "），交给 video.src");
+                return r;
+            });
+        }).then(function (r) {
+            if (!r || S.playing !== it) { return; }
+            player = webPlayer;
+            return player.open(it, { startAt: startAt, resolved: r }).then(function () {
+                if (S.playing !== it) { return; }
+                R("出画面 " + Math.round(performance.now() - t0) + "ms");
+                spin(false);
+                hideOverlaySoon();
+            });
+        }).catch(function (e) {
+            if (S.playing === it) { showError(errStr(e)); }
+        });
+        clearInterval(saveTimer);
+        saveTimer = setInterval(saveProgress, 5000);
+        clearInterval(ovTick);
+        ovTick = setInterval(drawOverlay, 250);
+    }
+
+    function saveProgress() {
+        var it = S.playing, d = player.duration();
+        if (it && d && video.currentTime > 1) { Store.setProgress(it.fileKey, video.currentTime, d, it.title); }
+    }
+
+    /* 停下这部片（存进度、关播放器、清字幕），不管接下来去哪 */
+    function stopPlayback(ended) {
+        var it = S.playing;
+        if (!it) { return null; }
+        if (ended) { Store.setProgress(it.fileKey, player.duration(), player.duration(), it.title); }
+        else { saveProgress(); }
+        clearInterval(saveTimer);
+        clearInterval(ovTick);
+        clearInterval(subTimer);
+        clearTimeout(S.pendTimer);
+        hideUpnext();
+        closeMenu();
+        if (S.subR) { S.subR.set(null); }
+        S.playing = null;
+        S.pending = null;
+        player.close();
+        spin(false);
+        ovShow(false);
+        return it;
+    }
+
+    function finishPlayback(ended) {
+        var it = stopPlayback(ended);
+        if (!it) { return; }
+        $("player").classList.remove("on");
+        $("home").classList.remove("hide");
+        S.screen = "home";
+        pumpCover();
+        var i = S.view.indexOf(it);
+        if (i >= 0) {
+            var el = $("c" + i);
+            if (el) { el.outerHTML = cardHtml(it, i); }
+            S.focus = i;
+            updateFocus();
+        }
+        if (ended) { toast(T("看完了")); }
+    }
+
+    /* known：电视的限制（解不了的格式、太高的 H.264），说清楚就好：不放留 issue 的码、不当出事上传 */
+    function showError(msg, known) {
+        /* 一次失败只报一次：播放器先 state("error") 报一次，open() 的 promise 再 reject 一次（2026-10-26 每份诊断日志里都是
+         * 「放不了：90 秒没出画面」紧跟着「放不了：timeout」、出事也记两回）。play() 开头会把 perr 藏起来 */
+        if ($("perr").style.display === "block") { return; }
+        spin(false);
+        $("perr").innerHTML = T("放不了：{0}", esc(msg || T("未知错误"))) + "<br><span style='color:#8b939b;font-size:28px'>" + T("按返回键回到列表") + "</span>" + (known ? "" : reportHtml(240));
+        $("perr").style.display = "block";
+        R("放不了：" + msg);
+        if (!known) { Diag.incident("放不了：" + msg); }
+    }
+
+    /* 浮层出来时字幕抬到它上面（#player.ovon） */
+    function ovShow(on) { $("ov").classList.toggle("on", on); $("player").classList.toggle("ovon", on); }
+    function showOverlay() {
+        ovShow(true);
+        drawOverlay();
+        clearTimeout(S.ovTimer);
+    }
+    function hideOverlaySoon() {
+        clearTimeout(S.ovTimer);
+        S.ovTimer = setTimeout(function () {
+            if (!video.paused && S.pending === null) { ovShow(false); }
+        }, 4000);
+    }
+
+    function drawOverlay() {
+        if (!$("ov").classList.contains("on")) { return; }
+        var d = player.duration(), t = S.pending !== null ? S.pending : video.currentTime;
+        if (!d) { $("ov-time").textContent = T("正在打开…"); return; }
+        var pct = Math.min(100, t / d * 100);
+        $("ov-fill").style.width = pct + "%";
+        $("ov-dot").style.left = pct + "%";
+        var b = video.buffered, end = 0;
+        for (var i = 0; i < b.length; i++) { if (b.start(i) <= video.currentTime + 0.5 && b.end(i) > video.currentTime) { end = b.end(i); } }
+        $("ov-buf").style.width = Math.min(100, end / d * 100) + "%";
+        $("ov-time").textContent = fmtTime(t) + " / " + fmtTime(d) + (video.paused && S.pending === null ? "　" + T("已暂停") : "");
+    }
+
+    /* ---------- 音轨、字幕 ---------- */
+
+    var LANG = { chi: "中文", zho: "中文", zh: "中文", cmn: "国语", yue: "粤语", eng: "英语", en: "英语", jpn: "日语", ja: "日语",
+                 kor: "韩语", ko: "韩语", fre: "法语", fra: "法语", fr: "法语", ger: "德语", deu: "德语", de: "德语", spa: "西班牙语", es: "西班牙语",
+                 ita: "意大利语", it: "意大利语", rus: "俄语", ru: "俄语", tha: "泰语", th: "泰语", por: "葡萄牙语", pt: "葡萄牙语", vie: "越南语", hin: "印地语",
+                 dut: "荷兰语", nld: "荷兰语", nl: "荷兰语", pol: "波兰语", pl: "波兰语" };
+    function langName(l) {
+        l = String(l || "").toLowerCase();
+        if (/^zh-?(hans|cn|sg)/.test(l)) { return T("简体中文"); }
+        if (/^zh-?(hant|tw|hk|mo)/.test(l)) { return T("繁体中文"); }
+        var n = LANG[l] || LANG[l.split("-")[0]];
+        return n ? T(n) : "";
+    }
+    function isZh(x) {
+        return /^(chi|zho|zh|cmn|yue)\b/i.test(x.lang || "") || /中|国语|國語|普通话|粤|简|繁|chs|cht|chinese|mandarin|cantonese/i.test(x.name || "");
+    }
+    function isEn(x) { return /^(eng|en)\b/i.test(x.lang || "") || /english|英/i.test(x.name || ""); }
+    /* 「看得懂的语言」跟界面走：中文界面 = 中文，英文界面 = 英文 */
+    function isMine(x) { return I18n.lang === "en" ? isEn(x) : isZh(x); }
+    var CODEC = { "ac-3": "杜比 AC-3", "ec-3": "杜比 E-AC-3", opus: "Opus", flac: "FLAC", "mp4a.6B": "MP3", "mp4a.69": "MP3" };
+    function codecName(c) { c = String(c || ""); return CODEC[c] ? T(CODEC[c]) : /^mp4a\.40/.test(c) ? "AAC" : c.replace(/^A_/, ""); }
+    function paren(x) { return I18n.lang === "en" ? " (" + x + ")" : "（" + x + "）"; }
+    function chName(n) { return n === 1 ? T("单声道") : n === 2 ? T("立体声") : n === 6 ? "5.1" : n === 8 ? "7.1" : n ? T("{0} 声道", n) : ""; }
+    function audioLabel(a, i) {
+        var l = langName(a.lang), nm = a.name && a.name !== l ? a.name : "";
+        return [l || nm || T("音轨 {0}", i + 1), l && nm ? nm : "", codecName(a.codec), chName(a.channels)].filter(Boolean).join(" · ");
+    }
+    function subLabel(t, i) {
+        var l = langName(t.lang), nm = t.name && t.name !== l ? t.name : "";
+        return [l || nm || T("字幕 {0}", i + 1), l && nm ? nm : "", /PGS/.test(t.codec) && !/图形|image|pgs/i.test(nm) ? T("图形") : ""].filter(Boolean).join(" · ") + T("（片子里）");
+    }
+
+    /* S.subs：这部片子的字幕状态。emb = 片子里的轨（key → {info, track, label}）；files = 群里找到的字幕文件；
+     * on = 正在显示的（"" 关，"s:3" 片子里的，"f:文件名" 群里的文件） */
+    S.subR = null;
+    function resetSubs(it) {
+        if (!S.subR && window.Subs) { S.subR = Subs.renderer($("sub"), $("subtop"), $("subpic")); }
+        S.subs = { it: it, emb: {}, embList: [], files: [], fileTracks: {}, on: "", gotTracks: false, gotFiles: false, decided: false,
+                   off: Store.getPrefs(it.fileKey).off || 0 };
+        S.tracks = null;
+        if (S.subR) { S.subR.set(null); S.subR.offset(S.subs.off); }
+    }
+    function gotTracks(it, tr) {
+        var ss = S.subs;
+        S.tracks = tr;
+        tr.subs.forEach(function (t, i) {
+            if (ss.emb[t.key]) { return; }
+            ss.emb[t.key] = { info: t, track: Subs.track(t.codec, t.codecPrivate), label: subLabel(t, i) };
+            ss.embList.push(t.key);
+        });
+        ss.gotTracks = true;
+        if (tr.audio.length > 1) { R("音轨：" + tr.audio.map(function (a, i) { return (a.current ? "▶" : "") + audioLabel(a, i) + (a.ok ? "" : "（" + a.why + "）"); }).join("，")); }
+        if (tr.subs.length) { R("片子里的字幕：" + tr.subs.map(function (t, i) { return subLabel(t, i) + " " + t.codec + (t.isDefault ? " 默认" : "") + (t.isForced ? " 强制" : ""); }).join("，")); }
+        decideSubs();
+    }
+    function findSubFiles(it) {
+        if (it.kind === "web" || !it.msg) { S.subs.gotFiles = true; decideSubs(); return; }
+        TG.subtitlesFor(it).then(function (list) {
+            if (!S.subs || S.subs.it !== it) { return; }
+            S.subs.files = list;
+            S.subs.gotFiles = true;
+            if (list.length) { R("群里的字幕文件：" + list.map(function (f) { return Diag.priv(f.name) + "（" + f.score.toFixed(1) + "）"; }).join("，")); }
+            decideSubs();
+        }).catch(function (e) { R("找字幕文件出错 " + errStr(e)); S.subs.gotFiles = true; decideSubs(); });
+    }
+
+    /* 默认开哪个：这部片子上次选过的 → 强制字幕 → 对白不是中文时，中文字幕（片子里的优先，再看群里对得上名字的文件）→ 关。
+     * 对白是中文就不自动开（国产片多半是硬字幕）。等音轨和字幕文件都知道了才定。
+     * 英文界面同样的规则换成英文：对白不是英文时开英文字幕。 */
+    function decideSubs() {
+        var ss = S.subs;
+        if (!ss || ss.decided || !ss.gotTracks || !ss.gotFiles) { return; }
+        ss.decided = true;
+        var pref = Store.getPrefs(ss.it.fileKey);
+        if (pref.sub !== undefined) { if (pref.sub) { applySub(pref.sub, "上次选的"); } return; }
+        var emb = ss.embList.map(function (k) { return ss.emb[k].info; });
+        var forced = emb.filter(function (t) { return t.isForced; })[0];
+        if (forced) { applySub(forced.key, "强制字幕"); return; }
+        var cur = S.tracks && S.tracks.audio.filter(function (a) { return a.current; })[0];
+        if (cur && isMine(cur)) { if (emb.length || ss.files.length) { toast(T("有字幕，长按确认键可以打开"), 4000); } return; }
+        var mine = emb.filter(isMine), pick = mine.filter(function (t) { return t.isDefault; })[0] || mine[0];
+        if (pick) { applySub(pick.key, I18n.lang === "en" ? "英文字幕" : "中文字幕"); return; }
+        /* 字幕文件：没写语言的也算（群里发的多半就是群里人看得懂的） */
+        var f = ss.files[0], fl = f && f.lang;
+        if (f && f.score >= 3 && (!fl || (I18n.lang === "en" ? fl === "英文" || fl === "中英" : fl !== "英文"))) { applySub("f:" + f.name, "名字对得上的字幕文件"); return; }
+        if (emb.length || ss.files.length) { toast(T("有字幕，长按确认键可以选"), 4000); }
+    }
+
+    /* why 有值 = 自动选的（不记）；没有 = 用户在菜单里选的（记下来，下次这部片子直接用） */
+    function applySub(key, why) {
+        var ss = S.subs, it = ss.it;
+        if (!why) { Store.setPrefs(it.fileKey, { sub: key }); }
+        ss.on = key;
+        if (!key) { S.subR.set(null); if (!why) { toast(T("字幕关了")); } return; }
+        if (key.indexOf("s:") === 0) {
+            var e = ss.emb[key];
+            if (!e) { ss.on = ""; return; }
+            S.subR.set(e.track);
+            R("字幕 → " + e.label + (why ? "（" + why + "）" : ""));
+            if (e.track.kind === "image" && !why) { player.refetch("换图形字幕，重读"); }
+            toast(T("字幕：{0}", e.label.replace(T("（片子里）"), "")));
+            return;
+        }
+        var name = key.slice(2), f = ss.files.filter(function (x) { return x.name === name; })[0];
+        if (ss.fileTracks[name]) { S.subR.set(ss.fileTracks[name]); toast(T("字幕：{0}", name)); return; }
+        if (!f) { ss.on = ""; return; }
+        var t0 = performance.now();
+        TG.download(f.doc).then(function (bytes) {
+            var text = Subs.decode(new Uint8Array(bytes)), ev = Subs.parse(text, name);
+            var tr = Subs.track("file", null);
+            tr.addEvents(ev);
+            ss.fileTracks[name] = tr;
+            R("字幕文件「" + Diag.priv(name) + "」" + Math.round(bytes.length / 1024) + "KB " + ev.length + " 条，" + Math.round(performance.now() - t0) + "ms" + (why ? "（" + why + "）" : ""));
+            if (S.subs !== ss || ss.on !== key) { return; }
+            if (!ev.length) {
+                toast(T("字幕文件「{0}」里读不出字幕", name));
+                Diag.incident("字幕文件里读不出字幕");
+                ss.on = "";
+                return;
+            }
+            S.subR.set(tr);
+            toast(T("字幕：{0}", (f.lang ? T(f.lang) + " · " : "") + name));
+        }).catch(function (e) {
+            R("字幕文件「" + Diag.priv(name) + "」下载出错 " + errStr(e));
+            if (S.subs === ss && ss.on === key) {
+                ss.on = "";
+                toast(T("字幕文件下不下来：{0}", errStr(e)));
+                Diag.incident("字幕文件下不下来：" + errStr(e));
+            }
+        });
+    }
+    function setSubOffset(d) {
+        var ss = S.subs;
+        ss.off = Math.round((ss.off + d) * 10) / 10;
+        S.subR.offset(ss.off);
+        Store.setPrefs(ss.it.fileKey, { off: ss.off });
+    }
+
+    /* 换音轨：在当前位置重开（见 player.js 开头），停在原来那一秒 */
+    function switchAudio(key) {
+        var it = S.playing, t = video.currentTime;
+        if (!it || (S.tracks && S.tracks.audio.some(function (a) { return a.current && a.key === key; }))) { return; }
+        Store.setPrefs(it.fileKey, { audio: key });
+        saveProgress();
+        play(it, { reopen: true, startAt: t, audio: key });
+    }
+
+    /* ---------- 音乐（music.js；issue #3「Telegram Music」，2026-10-26）----------
+     * 和视频、网页链接混在同一个网格里（只有歌的频道也进来源栏）。点一首：从它开始，按网格里的顺序把这个来源里的歌一首首放下去。
+     * 按返回回到列表时接着放（卡片上标「正在放」），点那张卡片回到这个画面；放视频时停。 */
+
+    var music = Music.create($("au"), { report: function (s) { Log.report("music", s); }, onState: onMusicState, load: loadTrack });
+    S.mu = { item: null, tick: 0, from: "" };
+
+    /* 整首下下来：和放视频同一个数据源（tg.js 的 source，按块取、文件引用过期会重取），不限速。
+     * FLAC 电视解不了：一块块交给 flac.js 的后台线程，边下边解，下完等它解完、拼成 WAV */
+    function isFlac(it) { return it.ext === "flac" || /flac/i.test(it.mime || ""); }
+    async function loadTrack(it, onProgress, signal) {
+        var st = TG.source(it).stream(0, signal, function () { return Promise.resolve(); }), parts = [], got = 0, r, w = isFlac(it) ? Flac.worker() : null;
+        var mp4 = !w && isMp4Audio(it), known = null;
+        try {
+            while (!(r = await st.iter.next()).done) {
+                got += r.value.length;
+                if (w) { w.push(r.value); } else { parts.push(r.value); }
+                onProgress(got, it.size, "download");
+                if (mp4 && known === null && parts.length === 2) { known = m4aProblem(parts, got, false); unplayable(known); }
+            }
+            if (mp4 && known === null) { unplayable(m4aProblem(parts, got, true)); }
+            if (!w) { return new Blob(parts, { type: it.mime || "" }); }
+            onProgress(got, it.size, "decode");
+            var t0 = performance.now(), wav = await w.end();
+            Log.report("music", "FLAC 下完之后又等解码 " + Math.round(performance.now() - t0) + "ms，WAV " + fmtMB(wav.size));
+            return wav;
+        } catch (e) { if (w) { w.stop(); } throw e; }
+    }
+
+    /* m4a 里是电视解不了的编码：2026-10-27 一串 40 首里的一首 68MB、5 分半（1.7Mbps，ALAC），<audio> 只报 DEMUXER_ERROR_NO_SUPPORTED_STREAMS，
+     * 屏幕上是这句原话、还当出事传了上来。看 moov 里的音轨，解不了就说是什么（和视频那边同一句）、跳到下一首。moov 在开头的，头两块到了就知道。 */
+    function isMp4Audio(it) { return /^(m4a|m4b|mp4|alac)$/i.test(it.ext || "") || /audio\/(mp4|x-m4a|m4a)/i.test(it.mime || ""); }
+    function bytesAt(parts, off, len) {
+        var out = new Uint8Array(len), o = 0, at = 0;
+        for (var i = 0; i < parts.length && o < len; i++) {
+            var p = parts[i], end = at + p.length;
+            if (end > off + o) {
+                var from = off + o - at, n = Math.min(p.length - from, len - o);
+                out.set(p.subarray(from, from + n), o);
+                o += n;
+            }
+            at = end;
+        }
+        return out;
+    }
+    /* "" = 放得了（或者看不出来），解不了的话是那句话；whole 为假时 moov 还没到手回 null */
+    function m4aProblem(parts, total, whole) {
+        var off = 0;
+        while (off + 8 <= total) {
+            var h = bytesAt(parts, off, 16), size = ((h[0] << 24) >>> 0) + (h[1] << 16) + (h[2] << 8) + h[3];
+            var type = String.fromCharCode(h[4], h[5], h[6], h[7]);
+            if (size === 1) { size = (((h[8] << 24) >>> 0) + (h[9] << 16) + (h[10] << 8) + h[11]) * 4294967296 + ((h[12] << 24) >>> 0) + (h[13] << 16) + (h[14] << 8) + h[15]; }
+            if (type === "moov") {
+                if (off + size > total) { return whole ? "" : null; }
+                try {
+                    var bad = Mp4.parseMoov(bytesAt(parts, off, size)).tracks.filter(function (t) { return t.kind === "audio" && t.unsupported; })[0];
+                    return bad ? bad.unsupported : "";
+                } catch (e) { return ""; }
+            }
+            if (size < 8) { return ""; }
+            off += size;
+        }
+        return whole ? "" : null;
+    }
+    function unplayable(why) {
+        if (!why) { return; }
+        var e = new Error(why);
+        e.known = true;
+        throw e;
+    }
+
+    /* 卡片上的专辑图：Telegram 给的缩略图（方的），没有就是歌名卡片。不截帧、不找海报 */
+    function musicArt(it) {
+        return Cover.cached(it).then(function (c) {
+            if (c) { if (c.kind !== "none") { setThumb(it, c); } return; }
+            return TG.thumb(it, 320).then(function (th) {
+                if (!th) { Cover.keepNone(it); return; }
+                setThumb(it, { url: th.url, kind: "art" });
+                Cover.keepThumb(it, th.bytes, "art");
+            });
+        });
+    }
+
+    /* PDF 卡片：Telegram 给第一页生成的缩略图；没有就是片名卡片 */
+    function pdfThumb(it) {
+        return Cover.cached(it).then(function (c) {
+            if (c) { if (c.kind !== "none") { setThumb(it, c); } return; }
+            return TG.thumb(it, CARD_W).then(function (th) {
+                if (!th) { Cover.keepNone(it); return; }
+                setThumb(it, { url: th.url, kind: "thumb" });
+                Cover.keepThumb(it, th.bytes);
+            });
+        });
+    }
+
+    function playMusic(it, given) {
+        S.screen = "music";
+        $("home").classList.add("hide");
+        $("music").classList.add("on");
+        clearInterval(S.mu.tick);
+        S.mu.tick = setInterval(drawMusicBar, 250);
+        var cur = music.current();
+        if (cur && cur.fileKey === it.fileKey) { drawMusic(); drawMusicBar(); return; }        // 正在放的那首：只是回到这个画面
+        var list = given || S.view.filter(function (x) { return x.kind === "music"; }), i = list.indexOf(it);
+        S.mu.from = S.src && S.src.kind !== "search" ? S.src.title : it.chatTitle;
+        R("放音乐「" + Diag.priv(it.title) + "」" + (it.ext || it.mime) + " " + fmtSize(it.size) + " " + fmtTime(it.duration) + "，这一串 " + list.length + " 首，从第 " + (i + 1) + " 首");
+        music.play(list, i);
+    }
+    function closeMusic() {
+        clearInterval(S.mu.tick);
+        $("music").classList.remove("on");
+        $("home").classList.remove("hide");
+        S.screen = "home";
+        var i = S.mu.item ? S.view.findIndex(function (x) { return x.fileKey === S.mu.item.fileKey; }) : -1;
+        if (i >= 0) { S.focus = i; }
+        updateFocus();
+    }
+    function stopMusic(why) {
+        if (!music.current()) { return; }
+        R("音乐停了（" + why + "）");
+        music.stop();
+        var old = S.mu.item;
+        S.mu.item = null;
+        refreshCard(old);
+    }
+    function refreshCard(it) {
+        var i = it ? S.view.findIndex(function (x) { return x.fileKey === it.fileKey; }) : -1, el = i >= 0 && $("c" + i);
+        if (!el) { return; }
+        el.outerHTML = cardHtml(S.view[i], i);
+        if (i === S.focus) { updateFocus(); }
+    }
+
+    function onMusicState(phase, info) {
+        if (phase === "track") {
+            var old = S.mu.item;
+            S.mu.item = info.item;
+            refreshCard(old);
+            refreshCard(info.item);
+            drawMusic();
+            return;
+        }
+        var st = $("mu-state"), l = music.list();
+        st.classList.toggle("err", phase === "error");
+        if (phase === "loading") {
+            st.textContent = info.stage === "decode" ? T("正在解码 FLAC…") : info.total ? T("正在下载 {0} / {1}", fmtMB(info.got), fmtMB(info.total)) : T("正在下载…");
+        }
+        else if (phase === "playing") { st.textContent = ""; }
+        else if (phase === "blocked") { st.textContent = T("按确认播放"); }
+        else if (phase === "paused") { st.textContent = T("已暂停"); }
+        else if (phase === "error") {
+            st.textContent = T("放不了：{0}", info.msg) + (music.index() + 1 < l.length ? T("，3 秒后放下一首") : "");
+            if (!info.known) { Diag.incident("放不了音乐：" + info.msg); }
+        } else if (phase === "done") {
+            st.textContent = T("这一串放完了");
+            if (S.screen !== "music") { toast(T("音乐放完了")); }
+        }
+    }
+    function fmtMB(n) { return (n / 1048576).toFixed(1) + " MB"; }
+
+    function drawMusic() {
+        var it = S.mu.item;
+        if (!it) { return; }
+        $("mu-title").textContent = it.title;
+        $("mu-artist").textContent = it.performer || "";
+        $("mu-from").textContent = [S.mu.from, (it.ext || "").toUpperCase(), it.size ? fmtSize(it.size) : ""].filter(Boolean).join(" · ");
+        var l = music.list(), nx = l[music.index() + 1];
+        $("mu-next").textContent = nx ? T("下一首：{0}", nx.title + (nx.performer ? " — " + nx.performer : "")) : "";
+        $("mu-ph").setAttribute("style", phStyle(it.title));
+        $("mu-ph-t").textContent = it.title;
+        var img = $("mu-img");
+        img.classList.remove("on");
+        $("mu-bg").style.backgroundImage = "";
+        function show(url) {
+            if (S.mu.item !== it || !url) { return; }
+            img.src = url;
+            img.classList.add("on");
+            posterBg(url).then(function (bg) { if (bg && S.mu.item === it) { $("mu-bg").style.backgroundImage = "url(" + bg + ")"; } });
+        }
+        /* 卡片上那张先顶上，再换一张大的（这个画面上 560 宽） */
+        var c = S.thumbs[it.fileKey];
+        if (c && c.url) { show(c.url); }
+        TG.thumb(it, 640).then(function (th) { if (th) { show(th.url); } }).catch(function () {});
+    }
+    function drawMusicBar() {
+        var t = music.time(), d = music.duration() || (S.mu.item && S.mu.item.duration) || 0, f = d ? Math.min(1, t / d) : 0;
+        $("mu-fill").style.width = (f * 100).toFixed(2) + "%";
+        $("mu-dot").style.left = (f * 100).toFixed(2) + "%";
+        $("mu-time").textContent = fmtTime(t) + " / " + fmtTime(d);
+    }
+
+    /* 确认 暂停 / 接着放；←→ 10 秒；↑↓ 上一首 / 下一首（遥控器的上一曲 / 下一曲键也是）；返回 回列表（接着放）；停止键 停 */
+    function musicKey(k) {
+        if (k === 10009) { closeMusic(); return; }
+        if (k === 413) { stopMusic("停止键"); closeMusic(); return; }
+        /* 在卡片上按确认进来的：那一下的自动重复还落在这里，等松开过一次才认（见 enterDown） */
+        if (k === 13 && !S.enterArmed) { return; }
+        if (k === 13 || k === 10252 || k === 415 || k === 19) {
+            if ((k === 415 && !music.paused()) || (k === 19 && music.paused())) { return; }
+            music.toggle();
+        }
+        else if (k === 37 || k === 412) { music.seek(music.time() - 10); drawMusicBar(); }
+        else if (k === 39 || k === 417) { music.seek(music.time() + 10); drawMusicBar(); }
+        else if (k === 38 || k === 10232) { if (!music.prev()) { toast(T("已经是第一首")); } }
+        else if (k === 40 || k === 10233) { if (!music.next()) { toast(T("已经是最后一首")); } }
+    }
+
+    /* ---------- PDF（pdf.js；整个文件下下来，一页页画在画布上）---------- */
+
+    var pdf = { item: null, doc: null, page: 1, gen: 0, render: null, ctl: null, scrollY: 0, scrollMax: 0, w: 1920, h: 1080 };
+
+    function openPdf(it) {
+        if (music.current()) { stopMusic("放 PDF"); }
+        var t0 = performance.now();
+        var gen = ++pdf.gen;
+        pdf.item = it;
+        pdf.page = 1;
+        pdf.scrollY = 0;
+        pdf.scrollMax = 0;
+        if (pdf.doc) { try { pdf.doc.destroy(); } catch (e) {} pdf.doc = null; }
+        S.screen = "pdf";
+        $("home").classList.add("hide");
+        $("pdf").classList.add("on");
+        $("pdf-title").textContent = it.title;
+        $("pdf-page").textContent = "";
+        $("pdf-canvas").style.display = "none";
+        $("pdf-msg").className = "";
+        $("pdf-msg").textContent = T("正在下载 PDF…");
+        R("打开 PDF「" + Diag.priv(it.title) + "」" + fmtSize(it.size) + " " + Diag.priv(it.fileName || it.mime));
+        var ctl = pdf.ctl = new AbortController();
+        TG.pdfData(it, function (got, total) {
+            if (gen !== pdf.gen) { return; }
+            $("pdf-msg").textContent = total ? T("正在下载 {0} / {1}", fmtMB(got), fmtMB(total)) : T("正在下载…");
+        }, ctl.signal).then(function (data) {
+            if (gen !== pdf.gen) { return null; }
+            $("pdf-msg").textContent = T("正在打开 PDF…");
+            if (!window.pdfjsLib) { throw new Error(T("pdf.js 没有加载起来")); }
+            try { pdfjsLib.GlobalWorkerOptions.workerSrc = "js/pdf/pdf.worker.min.js"; } catch (e) {}
+            return pdfjsLib.getDocument({ data: data }).promise;
+        }).then(function (doc) {
+            if (!doc) { return; }
+            if (gen !== pdf.gen) { try { doc.destroy(); } catch (e) {} return; }
+            pdf.doc = doc;
+            if (!doc.numPages) { throw new Error(T("这个 PDF 没有页面")); }
+            R("PDF 打开 " + doc.numPages + " 页，" + Math.round(performance.now() - t0) + "ms");
+            $("pdf-page").textContent = "1 / " + doc.numPages;
+            renderPdfPage();
+        }).catch(function (e) {
+            if (gen !== pdf.gen || (e && (e.name === "AbortError" || e.name === "RenderingCancelledException"))) { return; }
+            pdfFail(e);
+        });
+    }
+
+    function pdfFail(e) {
+        $("pdf-canvas").style.display = "none";
+        $("pdf-msg").className = "err";
+        $("pdf-msg").textContent = T("PDF 打不开：{0}", errStr(e));
+        R("PDF 出错：" + errStr(e));
+    }
+
+    /* La página ocupa todo el ancho (1920). Si es más alta que la pantalla, ↑↓ la desplazan. */
+    function pdfPlace() {
+        var c = $("pdf-canvas");
+        c.style.left = Math.round((1920 - pdf.w) / 2) + "px";
+        c.style.top = (pdf.h < 1080 ? Math.round((1080 - pdf.h) / 2) : -Math.round(pdf.scrollY)) + "px";
+    }
+
+    function renderPdfPage() {
+        var doc = pdf.doc;
+        if (!doc || !pdf.item) { return; }
+        var gen = pdf.gen, num = pdf.page;
+        $("pdf-msg").className = "";
+        $("pdf-msg").textContent = T("正在渲染 PDF…");
+        $("pdf-canvas").style.display = "none";
+        if (pdf.render) { try { pdf.render.cancel(); } catch (e) {} pdf.render = null; }
+        doc.getPage(num).then(function (page) {
+            if (gen !== pdf.gen || doc !== pdf.doc) { return null; }
+            var base = page.getViewport({ scale: 1 });
+            var view = page.getViewport({ scale: 1920 / base.width });
+            var canvas = $("pdf-canvas"), ctx = canvas.getContext("2d");
+            pdf.w = Math.floor(view.width);
+            pdf.h = Math.floor(view.height);
+            pdf.scrollMax = Math.max(0, pdf.h - 1080);
+            pdf.scrollY = Math.max(0, Math.min(pdf.scrollY, pdf.scrollMax));
+            canvas.width = pdf.w;
+            canvas.height = pdf.h;
+            canvas.style.width = pdf.w + "px";
+            canvas.style.height = pdf.h + "px";
+            pdfPlace();
+            var task = page.render({ canvasContext: ctx, viewport: view });
+            pdf.render = task;
+            return task.promise.then(function () {
+                if (gen !== pdf.gen) { return; }
+                pdf.render = null;
+                canvas.style.display = "block";
+                $("pdf-msg").textContent = "";
+                $("pdf-page").textContent = pdf.page + " / " + doc.numPages;
+            });
+        }).catch(function (e) {
+            if (gen !== pdf.gen || (e && e.name === "RenderingCancelledException")) { return; }
+            pdfFail(e);
+        });
+    }
+
+    function pdfGoto(n) {
+        if (!pdf.doc) { return; }
+        var p = Math.max(1, Math.min(pdf.doc.numPages, n));
+        if (p === pdf.page) { return; }
+        pdf.page = p;
+        pdf.scrollY = 0;
+        renderPdfPage();
+    }
+
+    function pdfScroll(dy) {
+        if (!pdf.doc || pdf.scrollMax <= 0) { return; }
+        pdf.scrollY = Math.max(0, Math.min(pdf.scrollMax, pdf.scrollY + dy));
+        pdfPlace();
+    }
+
+    function closePdf() {
+        pdf.gen++;
+        if (pdf.ctl) { try { pdf.ctl.abort(); } catch (e) {} pdf.ctl = null; }
+        if (pdf.render) { try { pdf.render.cancel(); } catch (e) {} pdf.render = null; }
+        if (pdf.doc) { try { pdf.doc.destroy(); } catch (e) {} pdf.doc = null; }
+        pdf.item = null;
+        $("pdf").classList.remove("on");
+        $("home").classList.remove("hide");
+        S.screen = "home";
+        updateFocus();
+    }
+
+    /* ←→ página anterior/siguiente; ↑↓ desplazan la página; atrás vuelve a la lista */
+    function pdfKey(k) {
+        if (k === 10009 || k === 413) { closePdf(); return; }
+        if (!pdf.doc) { return; }
+        if (k === 37) { pdfGoto(pdf.page - 1); }
+        else if (k === 39) { pdfGoto(pdf.page + 1); }
+        else if (k === 38) { pdfScroll(-420); }
+        else if (k === 40) { pdfScroll(420); }
+    }
+
+    /* ---------- 菜单（播放时长按确认键）---------- */
+
+    S.menu = null;
+    function menuRows() {
+        var rows = [], tr = S.tracks || { audio: [], subs: [] }, ss = S.subs;
+        if (tr.audio.length > 1) {
+            rows.push({ h: T("音轨") });
+            tr.audio.forEach(function (a, i) {
+                rows.push({ label: audioLabel(a, i) + (a.ok ? "" : paren(a.why)), ck: a.current, dis: !a.ok, act: function () { closeMenu(); switchAudio(a.key); } });
+            });
+        }
+        rows.push({ h: T("字幕") });
+        rows.push({ label: T("关"), ck: !ss.on, act: function () { applySub(""); closeMenu(); } });
+        ss.embList.forEach(function (k) {
+            var e = ss.emb[k];
+            rows.push({ label: e.label, ck: ss.on === k, act: function () { applySub(k); closeMenu(); } });
+        });
+        ss.files.forEach(function (f) {
+            var k = "f:" + f.name;
+            rows.push({ label: (f.lang ? T(f.lang) + " · " : "") + f.name + T("（群里的文件）"), ck: ss.on === k, act: function () { applySub(k); closeMenu(); } });
+        });
+        if (!ss.embList.length && !ss.files.length) {
+            rows.push({ label: ss.gotFiles ? T("没有找到字幕") : T("正在找群里的字幕文件…"), dis: true });
+        }
+        if (ss.on) {
+            rows.push({ h: T("字幕时间（和对白对不上时调）") });
+            rows.push({ label: ss.off > 0 ? T("← 推迟 {0} 秒 →", ss.off.toFixed(1)) : ss.off < 0 ? T("← 提前 {0} 秒 →", (-ss.off).toFixed(1)) : T("← 不调 0.0 秒 →"), adjust: true });
+        }
+        var nx = nextEpisodeLoaded(S.playing);
+        if (nx) {
+            rows.push({ h: T("下一集") });
+            rows.push({ label: nx.title, act: function () { closeMenu(); playNext(nx); } });
+        }
+        return rows;
+    }
+    function openMenu() {
+        if (!S.subs || $("perr").style.display === "block") { return; }
+        S.menu = { rows: menuRows(), focus: -1 };
+        var r = S.menu.rows, cur = r.findIndex(function (x) { return x.ck && !x.dis; });
+        S.menu.focus = cur >= 0 ? cur : r.findIndex(function (x) { return !x.h && !x.dis; });
+        drawMenu();
+        $("toast").style.display = "none";      // 提示条在上方正中，会压在菜单的标题上
+        $("menu").classList.add("on");
+    }
+    function closeMenu() { S.menu = null; $("menu").classList.remove("on"); }
+    function drawMenu() {
+        var m = S.menu, html = "";
+        m.rows.forEach(function (x, i) {
+            if (x.h) { html += "<div class='mh'>" + esc(x.h) + "</div>"; return; }
+            html += "<div class='mi" + (x.dis ? " dis" : "") + (i === m.focus ? " focus" : "") + "' id='mi" + i + "'><span class='ck'>" + (x.ck ? "✓" : "") + "</span>" + esc(x.label) + "</div>";
+        });
+        $("menu-list").innerHTML = html;
+        var el = $("mi" + m.focus), y = el ? el.offsetTop : 0;
+        $("menu-list").style.transform = "translateY(" + (-Math.max(0, y - 700)) + "px)";
+    }
+    function menuKey(k) {
+        var m = S.menu, r = m.rows, i;
+        if (k === 10009) { closeMenu(); return; }
+        if (k === 38 || k === 40) {
+            for (i = m.focus + (k === 40 ? 1 : -1); i >= 0 && i < r.length; i += (k === 40 ? 1 : -1)) {
+                if (!r[i].h && !r[i].dis) { m.focus = i; break; }
+            }
+            drawMenu();
+            return;
+        }
+        var x = r[m.focus];
+        if (!x) { return; }
+        if (x.adjust && (k === 37 || k === 39)) { setSubOffset(k === 39 ? 0.5 : -0.5); m.rows = menuRows(); drawMenu(); return; }
+        if (k === 13 && x.act) { x.act(); }
+    }
+
+    /* ---------- 下一集 ---------- */
+
+    var CN_NUM = { 零: 0, 一: 1, 二: 2, 两: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9 };
+    function cnNum(s) {
+        if (/^\d+$/.test(s)) { return +s; }
+        var n = 0, cur = 0;
+        for (var i = 0; i < s.length; i++) {
+            var c = s[i];
+            if (c === "百") { n += (cur || 1) * 100; cur = 0; }
+            else if (c === "十") { n += (cur || 1) * 10; cur = 0; }
+            else if (CN_NUM[c] !== undefined) { cur = CN_NUM[c]; }
+            else { return NaN; }
+        }
+        return n + cur;
+    }
+    /* 集数：S01E02、第3集 / 第三话、EP02 / E02、[02]、「 - 02」。剧名 = 去掉集数（和画质、方括号之类）剩下的，用来认同一部剧 */
+    var EP_PATTERNS = [
+        [/s(\d{1,2})\s*e(\d{1,3})/i, function (m) { return +m[1] * 1000 + +m[2]; }],
+        [/第\s*([0-9零一二两三四五六七八九十百]+)\s*[集话話回期]/, function (m) { return cnNum(m[1]); }],
+        [/\bep?\.?\s*(\d{1,3})\b/i, function (m) { return +m[1]; }],
+        [/[\[【]\s*(\d{1,3})(?:v\d)?\s*[\]】]/i, function (m) { return +m[1]; }],
+        [/\s-\s(\d{1,3})(?=\s|$|\[|\.)/, function (m) { return +m[1]; }]
+    ];
+    function episodeOf(it) {
+        var srcs = [it.title || "", (it.fileName || "").replace(/\.[a-z0-9]{2,4}$/i, "")];
+        for (var j = 0; j < srcs.length; j++) {
+            for (var i = 0; i < EP_PATTERNS.length; i++) {
+                var m = EP_PATTERNS[i][0].exec(srcs[j]);
+                if (!m) { continue; }
+                var ep = EP_PATTERNS[i][1](m);
+                if (isNaN(ep)) { continue; }
+                var series = (srcs[j].slice(0, m.index) + " " + srcs[j].slice(m.index + m[0].length))
+                    .replace(/\[[^\]]*\]|【[^】]*】|\([^)]*\)/g, " ")
+                    .replace(/\b(2160p|1080[pi]|720p|480p|4k|web-?dl|webrip|blu-?ray|hdtv|x26[45]|hevc|aac|中字|国语|高清)\b/gi, " ")
+                    .replace(/[\s._\-–·|｜:：,，]+/g, "").toLowerCase();
+                if (series.length >= 1) { return { series: series, ep: ep }; }
+            }
+        }
+        return null;
+    }
+    /* 已经加载的列表里，同一部剧、集数比它大的里最小的那一集 */
+    function nextEpisodeLoaded(it) {
+        if (!it) { return null; }
+        var me = episodeOf(it);
+        if (!me) { return null; }
+        var best = null, bestEp = Infinity;
+        S.items.forEach(function (x) {
+            if (x === it || (x.kind === "web") !== (it.kind === "web")) { return; }
+            var e = episodeOf(x);
+            if (e && e.series === me.series && e.ep > me.ep && e.ep < bestEp) { best = x; bestEp = e.ep; }
+        });
+        return best;
+    }
+    /* 没加载到的话往后翻几页再找（新的在前，前面几集在后面的页里） */
+    async function findNext(it) {
+        var nx = nextEpisodeLoaded(it);
+        for (var i = 0; !nx && i < 3 && episodeOf(it) && S.next !== undefined && S.next !== null; i++) {
+            await loadMore();
+            nx = nextEpisodeLoaded(it);
+        }
+        return nx;
+    }
+
+    function onEnded() {
+        var it = S.playing;
+        if (!it) { return; }
+        findNext(it).then(function (nx) {
+            if (S.playing !== it) { return; }
+            if (!nx) { finishPlayback(true); return; }
+            R("放完了，下一集「" + Diag.priv(nx.title) + "」");
+            showUpnext(nx);
+        });
+    }
+    S.upnext = null;
+    function showUpnext(nx) {
+        closeMenu();
+        var u = S.upnext = { it: nx, left: 8 };
+        $("upnext-t").textContent = nx.title;
+        var draw = function () { $("upnext-k").textContent = T("{0} 秒后开始　·　确认 现在放　·　返回 不放了", u.left); };
+        draw();
+        $("upnext").classList.add("on");
+        clearTimeout(S.ovTimer);
+        ovShow(false);
+        u.timer = setInterval(function () {
+            if (S.upnext !== u) { clearInterval(u.timer); return; }
+            if (--u.left <= 0) { clearInterval(u.timer); playNext(nx); return; }
+            draw();
+        }, 1000);
+    }
+    function hideUpnext() {
+        if (S.upnext) { clearInterval(S.upnext.timer); }
+        S.upnext = null;
+        $("upnext").classList.remove("on");
+    }
+    function playNext(nx) {
+        var cur = S.playing;
+        var ended = cur && player.duration() && video.currentTime > player.duration() - 90;
+        stopPlayback(ended);
+        if (cur) { var ci = S.view.indexOf(cur), el = ci >= 0 && $("c" + ci); if (el) { el.outerHTML = cardHtml(cur, ci); } }
+        var i = S.view.indexOf(nx);
+        if (i >= 0) { S.focus = i; }
+        play(nx);
+    }
+
+    /* 快进快退：连按的步长累加，停手 0.7 秒才真的跳（每跳一次可能要重新下载）。
+     * 按住不放越按越快（第一版按多久都是一步一步地走）：同一个键两次之间不到 0.4 秒算按住，
+     * 按住的时间决定每一下的步长。 */
+    var STEPS = {
+        small: { at: [0, 1, 2, 3, 5], step: [15, 30, 60, 120, 300] },      // ← →（按一下 15 秒，用户 2026-10-02；原来 10 秒）
+        big: { at: [0, 1, 2, 3, 5], step: [60, 120, 300, 600, 900] }       // ↑ ↓ / 快进快退键
+    };
+    var hold = { key: 0, start: 0, last: 0 };
+    function stepFor(k, table) {
+        var now = Date.now();
+        if (hold.key !== k || now - hold.last > 400) { hold.key = k; hold.start = now; }
+        hold.last = now;
+        var h = (now - hold.start) / 1000, t = STEPS[table], i = 0;
+        while (i + 1 < t.at.length && h >= t.at[i + 1]) { i++; }
+        return t.step[i];
+    }
+
+    function nudge(delta) {
+        var d = player.duration();
+        if (!d) { return; }
+        var base = S.pending !== null ? S.pending : video.currentTime;
+        S.pending = Math.max(0, Math.min(d - 3, base + delta));
+        var diff = S.pending - video.currentTime;
+        var h = $("seekhint");
+        h.innerHTML = esc((diff >= 0 ? "+" : "−") + fmtTime(Math.abs(diff)) + "　→ " + fmtTime(S.pending)) +
+            "<div style='font-size:30px;font-weight:normal;color:#c5cad0;margin-top:10px'>" +
+            (Math.abs(delta) >= 60 ? T("每下 {0} 分钟", Math.abs(delta) / 60) : T("每下 {0} 秒", Math.abs(delta))) + "</div>";
+        h.style.display = "block";
+        showOverlay();
+        clearTimeout(S.pendTimer);
+        S.pendTimer = setTimeout(function () {
+            var target = S.pending;
+            S.pending = null;
+            h.style.display = "none";
+            if (target === null) { return; }
+            player.seek(target, target >= video.currentTime ? 1 : -1);
+            hideOverlaySoon();
+        }, 700);
+    }
+
+    /* ---------- 按键 ---------- */
+
+    function exitApp() {
+        try { tizen.application.getCurrentApplication().exit(); } catch (e) { window.close(); }
+    }
+
+    function homeKey(k) {
+        var n = S.view.length;
+        if (k === 10009) {
+            if (S.filterZone) { S.filterZone = false; renderFilters(); updateFocus(); return; }
+            if (S.zone === "rail") { S.zone = "grid"; renderRail(); updateFocus(); return; }
+            if (Date.now() - S.backAt < 2000) { exitApp(); return; }
+            S.backAt = Date.now();
+            toast(T("再按一次返回键退出"));
+            return;
+        }
+        /* Fila de filtros: ←→ cambia el tipo (se aplica al momento), OK/↓/↑ vuelve a las tarjetas. */
+        if (S.filterZone) {
+            if (k === 37 && S.filterFocus > 0) { S.filterFocus--; renderFilters(); setFilter(FILTERS[S.filterFocus].id); }
+            else if (k === 39 && S.filterFocus < FILTERS.length - 1) { S.filterFocus++; renderFilters(); setFilter(FILTERS[S.filterFocus].id); }
+            else if (k === 13 || k === 40 || k === 38) { S.filterZone = false; renderFilters(); updateFocus(); }
+            return;
+        }
+        if (S.zone === "rail") {
+            var list = railItems();
+            if (k === 38) { S.railFocus = Math.max(0, S.railFocus - 1); renderRail(); }
+            else if (k === 40) { S.railFocus = Math.min(list.length - 1, S.railFocus + 1); renderRail(); }
+            else if (k === 39) { S.zone = "grid"; renderRail(); updateFocus(); }
+            else if (k === 13) {
+                var s = list[S.railFocus];
+                if (s.id === "__search") { S.zone = "grid"; renderRail(); updateFocus(); openSearchBox(); return; }
+                if (s.id === "__lang") {
+                    var to = I18n.lang === "zh" ? "en" : I18n.lang === "en" ? "es" : "zh";
+                    R("界面语言 " + I18n.lang + " → " + to);
+                    I18n.set(to);
+                    location.reload();
+                    return;
+                }
+                if (s.id === "__acct") { S.zone = "grid"; renderRail(); updateFocus(); openAcct(); return; }
+                if (s.id === "__opts") { S.zone = "grid"; renderRail(); updateFocus(); openOpts(); return; }
+                S.zone = "grid";
+                openSource(s);
+            }
+            return;
+        }
+        if (!n) {
+            if (k === 13 && S.src) { if (S.src.kind === "web") { S.loggedIn[S.src.id] = false; } openSource(S.src); }
+            else if (k === 37) { toRail(); }
+            else if (k === 38) { openFilterZone(); }
+            return;
+        }
+        if (k === 37) {
+            if (S.focus % COLS === 0) { toRail(); return; }
+            S.focus--;
+        } else if (k === 39) { if (S.focus + 1 < n && (S.focus + 1) % COLS) { S.focus++; } }
+        else if (k === 38) {
+            if (S.focus < COLS) { openFilterZone(); return; }
+            S.focus -= COLS;
+        }
+        else if (k === 40) { S.focus = Math.min(n - 1, S.focus + COLS); }
+        else if (k === 13) { S.enterArmed = false; play(S.view[S.focus]); return; }
+        else { return; }
+        updateFocus();
+    }
+
+    function toRail() {
+        refreshSources(false);
+        S.zone = "rail";
+        /* 光标落在当前来源上（搜索结果 → 「搜索」那一项）；第 0 项是「搜索」，没有当前来源就落在第一个群上 */
+        var i = railItems().findIndex(function (s) { return S.src && (s.id === S.src.id || (s.id === "__search" && S.src.kind === "search")); });
+        S.railFocus = i >= 0 ? i : Math.min(1, railItems().length - 1);
+        renderRail();
+        updateFocus();
+    }
+
+    function togglePlay() {
+        player.toggle();
+        showOverlay();
+        if (!video.paused) { hideOverlaySoon(); }
+        saveProgress();
+    }
+
+    /* 确认键：短按暂停 / 继续，按住 650ms 开菜单（和 bilibili 客户端卡片上的长按一样）。松开时才判断是短按，
+     * 按住时遥控器的自动重复不算新的一下。 */
+    var LONG_MS = 650, enterHold = null;
+    function enterDown() {
+        if (enterHold || !S.enterArmed) { return; }
+        var h = enterHold = { at: Date.now(), fired: false };
+        h.timer = setTimeout(function () { if (enterHold === h && S.screen === "player") { h.fired = true; openMenu(); } }, LONG_MS);
+    }
+    /* 在卡片上按确认开始播放：这一下的自动重复和松开都还落在播放器里，不能算「按住开菜单」。等它松开了才认确认键 */
+    S.enterArmed = true;
+    document.addEventListener("keyup", function (e) {
+        if (e.keyCode === 13 && !enterHold) { S.enterArmed = true; }
+        if (e.keyCode !== 13 || !enterHold) { return; }
+        var h = enterHold;
+        enterHold = null;
+        clearTimeout(h.timer);
+        if (h.fired || S.screen !== "player" || S.menu || S.upnext) { return; }
+        if (Date.now() - h.at >= LONG_MS) { openMenu(); } else { togglePlay(); }
+    });
+    window.addEventListener("blur", function () { if (enterHold) { clearTimeout(enterHold.timer); enterHold = null; } });
+
+    function playerKey(k) {
+        if (enterHold && k !== 13) { clearTimeout(enterHold.timer); enterHold = null; }
+        /* 按住确认键时遥控器的自动重复：不算新的一下（不然菜单一弹出来，下一个重复就在菜单里按了确认） */
+        if (k === 13 && enterHold) { return; }
+        if (S.upnext) {
+            if (k === 13) { playNext(S.upnext.it); }
+            else if (k === 10009 || k === 413) { hideUpnext(); finishPlayback(true); }
+            return;
+        }
+        if (S.menu) { menuKey(k); return; }
+        if (k === 10009 || k === 413) {
+            if (S.pending !== null) { clearTimeout(S.pendTimer); S.pending = null; $("seekhint").style.display = "none"; return; }
+            finishPlayback(false);
+            return;
+        }
+        if ($("perr").style.display === "block") { return; }
+        if (k === 13) { enterDown(); return; }
+        if (k === 10252 || k === 415 || k === 19) {
+            if (k === 415 && !video.paused) { return; }
+            if (k === 19 && video.paused) { return; }
+            togglePlay();
+        }
+        else if (k === 37) { nudge(-stepFor(k, "small")); }
+        else if (k === 39) { nudge(stepFor(k, "small")); }
+        else if (k === 38 || k === 417) { nudge(stepFor(k, "big")); }
+        else if (k === 40 || k === 412) { nudge(-stepFor(k, "big")); }
+        else { showOverlay(); hideOverlaySoon(); }
+    }
+
+    document.addEventListener("keydown", function (e) {
+        var k = e.keyCode;
+        if (S.screen === "password") { return; }
+        if (S.screen === "weblogin") { webLoginKey(k); return; }
+        if (S.screen === "api") { apiKey(k); return; }
+        if (S.screen === "search") { searchKey(k); return; }
+        if (S.screen === "bootfail") { if (k === 13) { location.reload(); } else if (k === 10009) { exitApp(); } return; }
+        if (S.screen === "login") { if (k === 10009) { leaveLogin(); } return; }
+        if (S.screen === "acct") { acctKey(k); e.preventDefault(); return; }
+        if (S.screen === "opts") { optsKey(k); e.preventDefault(); return; }
+        if (S.screen === "home") { homeKey(k); e.preventDefault(); }
+        else if (S.screen === "player") { playerKey(k); e.preventDefault(); }
+        else if (S.screen === "music") { musicKey(k); e.preventDefault(); }
+        else if (S.screen === "pdf") { pdfKey(k); e.preventDefault(); }
+    });
+
+    /* 从别的应用切回来：刷新当前来源（手机上刚转发的片子出现在最前面） */
+    document.addEventListener("visibilitychange", function () {
+        if (document.hidden) {
+            if (S.screen === "player") { saveProgress(); video.pause(); }
+            if (music.current() && !music.paused()) { music.toggle(); }      // 切到别的应用：歌也停（电视的声音归那个应用了）
+            return;
+        }
+        refreshSources(true);
+        if (S.screen === "home" && S.src) {
+            var keep = S.view[S.focus] && S.view[S.focus].fileKey;
+            openSource(S.src).then(function () {
+                var i = S.view.findIndex(function (it) { return it.fileKey === keep; });
+                if (i >= 0) { S.focus = i; updateFocus(); }
+            });
+        }
+    });
+
+    /* 给自测（js/selftest.js）读的 */
+    window.__app = { screen: function () { return S.screen; }, openOpts: openOpts, play: play,      // selftest.js 用
+                     music: function () { return { item: S.mu.item, index: music.index(), count: music.list().length, time: music.time(), paused: music.paused() }; },
+                     playMusic: function (list, i) { playMusic(list[i], list); }, stopMusic: function () { stopMusic("自测"); } };
+
+    boot().catch(function (e) {
+        /* 扫码页按返回、换账号都是 reload：卸载时 mtcute 销毁 port，等着的 signInQr 跟着断。那不是出事，以前每次都记成「启动出错」、报一次出事 */
+        if (TG.leaving()) { return; }
+        R("启动出错 " + errStr(e) + " | " + String(e && e.stack || "").split("\n").slice(0, 3).join(" "));
+        Diag.incident("启动出错：" + errStr(e));
+        /* 以前屏幕上什么都不变：扫码页上码不再换、或者停在空白的主页，观众只能干等。到了主页之后的错各处自己管（来源、播放器） */
+        if (S.screen !== "home") { bootFail(T("启动出错"), esc(errStr(e)) + "<br>" + T("按确认重试，按返回键退出")); }
+    });
+
+    /* 自动更新（update.js）：先报这次跑的是哪份代码、为什么，每次开机一分钟后查，开着每六小时；第一次跑一个新下载的版本时提示一次 */
+    try { Update.init({ report: Log.report, notice: function () { toast(T("已更新到 {0}", Boot.info().running), 4000); } }); }
+    catch (e) { R("Update.init 抛异常：" + errStr(e)); }
+    /* 这次启动 boot.js 扔掉了一个走不到首页的更新包。观众什么都看不到（照常跑安装包），开发者只能从这里知道 */
     try {
-      var el = $('setup-msg') || $('login-msg') || $('player-msg');
-      if (el) el.textContent = t('error') + msg + ' (' + t('line') + ' ' + line + ')';
+        var bootNote = Boot.info().note || "";
+        if (/标坏|选代码时出错/.test(bootNote)) { Diag.incident("更新包启动失败：" + bootNote); }
     } catch (e) {}
-  };
-
-  function reRender() {
-    if (screen === 'channels') loadDialogs(false);
-    else if (screen === 'archived') loadDialogs(true);
-    else if (screen === 'chat') loadMessages('');
-    else if (screen === 'photo') renderPhoto();
-  }
-
-  function init() {
-    try { var savedLang = localStorage.getItem('tg_lang'); if (savedLang === 'en' || savedLang === 'es') LANG = savedLang; } catch (e) {}
-    loadProgress();
-    loadUiScale();
-    $('setup-btn').addEventListener('click', doSetup);
-    $('setup-url').addEventListener('keydown', function (e) { if (e.keyCode === 13) doSetup(); });
-    $('pass-btn').addEventListener('click', doPassword);
-    $('pass-input').addEventListener('keydown', function (e) { if (e.keyCode === 13) doPassword(); });
-    $('btn-logout').addEventListener('click', function () {
-      api('/api/logout', 'POST', null, function () { setView('setup'); $('setup-url').focus(); });
-    });
-    $('btn-archive').addEventListener('click', function () {
-      if (lastList === 'archived') showChannels(); else showArchived();
-    });
-    $('btn-refresh').addEventListener('click', function () {
-      if (curChat) loadMessages('');
-      else if (lastList === 'archived') loadDialogs(true);
-      else loadDialogs(false);
-    });
-    $('btn-search').addEventListener('click', doSearch);
-    $('btn-search-toggle').addEventListener('click', toggleSearch);
-    $('search-input').addEventListener('keydown', function (e) { if (e.keyCode === 13) doSearch(); });
-    $('btn-lang').addEventListener('click', function () {
-      setLang(LANG === 'es' ? 'en' : 'es');
-      reRender();
-    });
-    $('btn-size').addEventListener('click', cycleTextSize);
-    $('btn-pdf-prev').addEventListener('click', function () { goPdfPage(-1); });
-    $('btn-pdf-next').addEventListener('click', function () { goPdfPage(1); });
-    $('btn-player-back').addEventListener('click', function () { saveCurProgress(); exitPlayer(); });
-    $('btn-photo-back').addEventListener('click', function () { pdfMsgId = null; cleanupPdf(); setView('main'); focusFirst(); });
-    $('btn-rewind').addEventListener('click', function () { seekBy(-10); });
-    $('btn-forward').addEventListener('click', function () { seekBy(10); });
-    $('btn-playpause').addEventListener('click', togglePlay);
-
-    var v = $('video');
-    v.addEventListener('timeupdate', function () {
-      if (playingType === 'audio') return;
-      updatePlayerTime();
-      if ((playingType === 'video' || playingType === 'video_file') && curMediaChat && curMsgId && v.duration && v.currentTime > 0) {
-        progress[progKey(curMediaChat, curMsgId)] = Math.floor(v.currentTime);
-      }
-    });
-    v.addEventListener('play', function () { if (playingType !== 'audio') $('btn-playpause').textContent = t('pause'); });
-    v.addEventListener('pause', function () { if (playingType !== 'audio') $('btn-playpause').textContent = t('play'); });
-    v.addEventListener('loadedmetadata', function () {
-      if (playingType === 'audio') return;
-      $('player-msg').textContent = '';
-      if (pendingResume > 15 && v.duration && pendingResume < v.duration * 0.95 && !didSeek) {
-        didSeek = true;
-        v.currentTime = pendingResume;
-        updatePlayerTime();
-      }
-      attachSubtitles();
-    });
-    v.addEventListener('playing', function () { if (playingType !== 'audio') $('player-msg').textContent = ''; });
-    v.addEventListener('error', function () {
-      if (playingType === 'audio') return;
-      var code = v.error ? v.error.code : -1;
-      logToServer('video error code=' + code + ' retry=' + videoRetry + ' msgId=' + curMsgId + ' chat=' + curChat);
-      if (videoRetry < 2) {
-        // La descarga/conversión en el servidor puede tardar; reintenta un par de veces.
-        videoRetry++;
-        $('player-msg').textContent = t('loading_video') + ' (' + videoRetry + '/2)';
-        if (videoLoadTimer) clearTimeout(videoLoadTimer);
-        videoLoadTimer = setTimeout(startVideoLoad, 3000);
-        return;
-      }
-      var msg = t('could_not_play') + ' [' + code + ']';
-      if (code === 3 || code === 4) msg += ' — ' + t('err_codec');
-      else if (code === 2) msg += ' — ' + t('err_network');
-      $('player-msg').textContent = msg;
-    });
-
-    var a = $('audio');
-    a.addEventListener('timeupdate', function () {
-      if (playingType !== 'audio') return;
-      updatePlayerTime();
-    });
-    a.addEventListener('playing', function () { $('player-msg').textContent = ''; });
-    a.addEventListener('play', function () { if (playingType === 'audio') $('btn-playpause').textContent = t('pause'); });
-    a.addEventListener('pause', function () { if (playingType === 'audio') $('btn-playpause').textContent = t('play'); });
-    a.addEventListener('error', function () {
-      var code = a.error ? a.error.code : -1;
-      $('player-msg').textContent = t('could_not_play') + ' [' + code + ']';
-      logToServer('audio error code=' + code + ' msgId=' + curMsgId + ' chat=' + curChat);
-    });
-
-    $('main-content').addEventListener('click', function (e) {
-      var el = findUp(e.target, 'data-action');
-      if (el) onAction(el.getAttribute('data-action'), el);
-    });
-
-    applyI18n();
-
-    try { BACKEND = localStorage.getItem('tg_backend'); } catch (e) {}
-    if (BACKEND) {
-      $('setup-url').value = BACKEND;
-      showLoading(true);
-      api('/api/status', 'GET', null, function (err, data) {
-        showLoading(false);
-        if (err) { setView('setup'); $('setup-msg').textContent = err.message; $('setup-url').focus(); }
-        else if (data.loggedIn) showChannels();
-        else showLogin();
-      });
-    } else {
-      setView('setup');
-      $('setup-url').focus();
-    }
-  }
-
-  init();
+    /* 这次启动的代码是好的：脚本都跑完、之后两秒没有一个 js 错误。boot.js 见到 Boot.ok() 才清掉 booting；没说这句的启动，下次打开
+     * 把它跑的那个更新标坏、改跑安装包。不等连上 Telegram —— 断网时连不上，那不是代码坏了 */
+    setTimeout(function () {
+        if (Log.errors()) {
+            R("启动后两秒内出过 " + Log.errors() + " 次 js 错误，这次启动不算成功（跑的是更新的话，下次打开退回安装包）");
+            return;
+        }
+        try { Boot.ok(); } catch (e) {}
+    }, 2000);
 })();

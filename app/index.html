@@ -1,101 +1,173 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Telegram TV</title>
-  <link rel="stylesheet" href="css/app.css">
+<meta charset="utf-8">
+<title>Telegram TV</title>
+<link rel="stylesheet" href="css/app.css">
 </head>
 <body>
-  <div id="app">
 
-    <div id="view-setup" class="view">
-      <div class="box">
-        <div class="logo">Telegram <span>TV</span></div>
-        <div class="sub" data-i18n="setup_sub">Conecta el TV con el servidor que corre en tu teléfono.</div>
-        <input type="text" id="setup-url" placeholder="http://192.168.1.50:8080" class="focusable">
-        <div class="hint" data-i18n="setup_hint">Esta dirección aparece en Termux (celular) al ejecutar <b>node server.js</b>. Es la IP de tu teléfono en el Wi-Fi + el puerto 8080.<br>Ejemplo: <b>http://192.168.1.50:8080</b></div>
-        <button id="setup-btn" class="btn-primary focusable" data-i18n="connect">Conectar</button>
-        <div id="setup-msg" class="msg"></div>
-      </div>
-    </div>
-
-    <div id="view-login" class="view hidden">
-      <div class="box">
-        <div class="logo" data-i18n="sign_in">Iniciar sesión</div>
-        <div class="sub" data-i18n="scan_qr">Escanea este QR con Telegram:<br>Configuración → Dispositivos → Escanear QR</div>
-        <div class="qr-wrap"><img id="qr-img" class="qr" src="" alt="QR"></div>
-        <div id="login-msg" class="msg"></div>
-      </div>
-    </div>
-
-    <div id="view-pass" class="view hidden">
-      <div class="box">
-        <div class="logo" data-i18n="password">Contraseña</div>
-        <div class="sub" data-i18n="two_step">Tu cuenta tiene verificación en dos pasos</div>
-        <input type="password" id="pass-input" placeholder="Contraseña de Telegram" data-i18n-ph="password_ph" class="focusable">
-        <button id="pass-btn" class="btn-primary focusable" data-i18n="submit">Enviar</button>
-        <div id="pass-msg" class="msg"></div>
-      </div>
-    </div>
-
-    <div id="view-main" class="view hidden">
-      <div class="topbar">
-        <div id="main-title" class="topbar-title" data-i18n="channels">Canales</div>
-        <div class="spacer"></div>
-        <input type="text" id="search-input" class="search-input focusable hidden" placeholder="Buscar en este chat..." data-i18n-ph="search_ph">
-        <button id="btn-search" class="btn focusable hidden" data-i18n="search">Buscar</button>
-        <button id="btn-search-toggle" class="btn btn-icon focusable" title="Buscar" aria-label="Buscar">&#128269;</button>
-        <button id="btn-archive" class="btn focusable" data-i18n="archived">Archivados</button>
-        <button id="btn-refresh" class="btn focusable" data-i18n="refresh">Recargar</button>
-        <button id="btn-size" class="btn btn-icon focusable" title="Tamaño de texto">A+</button>
-        <button id="btn-lang" class="btn focusable">English</button>
-        <button id="btn-logout" class="btn focusable" data-i18n="logout">Salir</button>
-      </div>
-      <div id="main-content" class="content"></div>
-    </div>
-
-    <div id="view-player" class="view hidden">
-      <video id="video"></video>
-      <audio id="audio"></audio>
-      <div class="player-top">
-        <button id="btn-player-back" class="btn" data-i18n="back">Volver</button>
-        <div id="player-title"></div>
-      </div>
-      <div class="player-controls">
-        <div class="pbar"><div id="pbar-fill"></div></div>
-        <div class="prow">
-          <div id="player-time" class="ptime">0:00 / 0:00</div>
-          <div class="pbtns">
-            <button id="btn-rewind" class="btn">-10s</button>
-            <button id="btn-playpause" class="btn" data-i18n="pause">Pausa</button>
-            <button id="btn-forward" class="btn">+10s</button>
-          </div>
-        </div>
-      </div>
-      <div id="player-msg" class="msg"></div>
-    </div>
-
-    <div id="view-photo" class="view hidden">
-      <div id="photo-scroll">
-        <img id="photo-img" src="" alt="">
-        <canvas id="pdf-canvas" class="hidden"></canvas>
-      </div>
-      <div class="player-top">
-        <button id="btn-photo-back" class="btn" data-i18n="back">Volver</button>
-        <div id="photo-caption"></div>
-      </div>
-      <div id="pdf-bar" class="pdf-bar hidden">
-        <button id="btn-pdf-prev" class="btn" aria-label="Previous page">&#8592;</button>
-        <div id="pdf-pageinfo">1 / 1</div>
-        <button id="btn-pdf-next" class="btn" aria-label="Next page">&#8594;</button>
-      </div>
-    </div>
-
-    <div id="toast" class="toast hidden"></div>
-    <div id="loading" class="hidden" data-i18n="loading">Cargando...</div>
+<!-- 主页：左边来源，右边视频网格 -->
+<div id="home">
+  <div id="rail">
+    <div id="brand" data-i18n>TG 视频</div>
+    <div id="rail-wrap"><div id="rail-list"></div></div>
   </div>
-  <script src="js/pdf/pdf.min.js"></script>
-  <script src="js/app.js"></script>
+  <div id="dim"></div>
+  <div id="main">
+    <div id="head"><div id="src-title"></div><div id="src-sub"></div><div id="src-hint" data-i18n>← 换群</div></div>
+    <div id="filters"></div>
+    <div id="grid-wrap"><div id="grid"></div></div>
+    <div id="empty"></div>
+  </div>
+</div>
+
+<!-- 播放器 -->
+<div id="player">
+  <video id="v"></video>
+  <!-- 字幕（subs.js）：图形字幕（PGS）画在画布上，文字字幕是 div -->
+  <canvas id="subpic" width="1920" height="1080"></canvas>
+  <div id="sub"></div>
+  <div id="subtop"></div>
+  <div id="spin"><div class="ring"></div><div id="spin-text"></div></div>
+  <div id="seekhint"></div>
+  <div id="ov">
+    <div id="ov-title"></div>
+    <div id="ov-bar"><div id="ov-buf"></div><div id="ov-fill"></div><div id="ov-dot"></div></div>
+    <div id="ov-row"><span id="ov-time"></span><span id="ov-keys" data-i18n>确认 暂停 · 长按确认 音轨 / 字幕 · ←→ ↑↓ 快进快退（按住越来越快）· 返回 回列表</span></div>
+  </div>
+  <div id="perr"></div>
+  <!-- 长按确认键：音轨、字幕、字幕时间、下一集 -->
+  <div id="menu"><div id="menu-wrap"><div id="menu-list"></div></div><div id="menu-foot" data-i18n>↑↓ 选 · 确认 · ←→ 调字幕时间 · 返回 关掉</div></div>
+  <!-- 放完了、有下一集 -->
+  <div id="upnext"><div class="h" data-i18n>接着放下一集</div><div class="t" id="upnext-t"></div><div class="k" id="upnext-k"></div></div>
+</div>
+
+<!-- 音乐（music.js 放，这里只是画面）：封面、歌名、进度；按返回回列表时接着放 -->
+<div id="music">
+  <div id="mu-bg"></div>
+  <div id="mu-art"><div class="ph" id="mu-ph"><span id="mu-ph-t"></span></div><img id="mu-img"></div>
+  <div id="mu-meta">
+    <div id="mu-title"></div>
+    <div id="mu-artist"></div>
+    <div id="mu-from"></div>
+    <div id="mu-state"></div>
+    <div id="mu-next"></div>
+  </div>
+  <div id="mu-bar"><div id="mu-fill"></div><div id="mu-dot"></div></div>
+  <div id="mu-row"><span id="mu-time"></span><span id="mu-keys" data-i18n>确认 暂停 · ←→ 快进快退 · ↑↓ 上一首 / 下一首 · 返回 回列表（接着放）</span></div>
+</div>
+<audio id="au" preload="auto"></audio>
+
+<!-- PDF（pdf.js 放，这里只是画面）：下载整个文件，一页页画在画布上 -->
+<div id="pdf">
+  <canvas id="pdf-canvas"></canvas>
+  <div id="pdf-msg"></div>
+  <div id="pdf-bar">
+    <div id="pdf-title"></div>
+    <div id="pdf-page"></div>
+    <div id="pdf-keys" data-i18n>←→ 翻页 · ↑↓ 滚动 · 返回 回列表</div>
+  </div>
+</div>
+
+<!-- 登录 -->
+<div id="panel">
+  <div id="how">
+    <div style="font-size:56px;margin-bottom:30px" data-i18n>登录 Telegram</div>
+    <div data-i18n>手机打开 Telegram →<br><b>设置 → 设备 → 关联桌面设备</b><br>扫右边这个码</div>
+    <div id="qrstate"></div>
+    <div id="qrnote"></div>
+  </div>
+  <div id="qr"></div>
+  <div id="pwbox"><span data-i18n>这个账号开了两步验证，输入密码后按确认：</span><br><input id="pw" type="password"></div>
+</div>
+
+<!-- 网页登录（有的站的列表要登录） -->
+<div id="wl">
+  <div class="box">
+    <div class="h"><span data-i18n>登录</span> <span id="wl-site"></span></div>
+    <div class="sub" data-i18n>登录一次，查到你的账号编号，之后直接读公开的页面，不用再登录。<br>用遥控器输入，输完按屏幕键盘上的「完成」。密码不保存。按返回键取消。</div>
+    <div class="lab" data-i18n>账号</div><input id="wl-user" type="text" autocomplete="off">
+    <div class="lab" data-i18n>密码</div><input id="wl-pass" type="password">
+    <div id="wl-msg"></div>
+  </div>
+</div>
+
+<!-- 第一次打开（apikey.js）：发布包里不带 API ID / Hash，填用户自己在 my.telegram.org 申请的 -->
+<div id="api">
+  <div class="box">
+    <div class="h" data-i18n>填你自己的 Telegram API ID</div>
+    <div class="sub" data-i18n>这台电视要用一组你自己的 Telegram API ID 才能连上。只要填一次，只存在这台电视上。<br>用手机扫右边的码打开 my.telegram.org，用你的手机号登录，点「API development tools」，随便填个名字建一个应用，把 App api_id 和 App api_hash 填在下面。<br>用遥控器输入，输完按屏幕键盘上的「完成」。</div>
+    <div class="lab">App api_id</div><input id="api-id" type="text" autocomplete="off">
+    <div class="lab">App api_hash</div><input id="api-hash" type="text" autocomplete="off" spellcheck="false">
+    <div id="api-msg"></div>
+  </div>
+  <div id="api-qr"></div>
+  <div id="api-url">my.telegram.org</div>
+</div>
+
+<!-- 账号（accounts.js）：切换、添加、退出 -->
+<div id="acct">
+  <div class="box">
+    <div class="h" data-i18n>账号</div>
+    <div class="sub" data-i18n>这台电视上登录的 Telegram 账号。切换不用重新扫码；每个人的来源、看到哪里各记各的。</div>
+    <div id="acct-list"></div>
+  </div>
+</div>
+
+<!-- 设置（app.js 的 openOpts）：诊断日志、自动更新，属于这台电视 -->
+<div id="opts">
+  <div class="box">
+    <div class="h" data-i18n>设置</div>
+    <div id="opts-list"></div>
+    <div class="st" id="opts-diag"></div>
+    <div class="st" id="opts-update"></div>
+    <div class="sub" data-i18n>诊断日志：出问题时（连不上、读不到、放不了），应用会把排查需要的运行信息传给开发者，不会泄露个人隐私。到 GitHub 报问题时附上这台电视的编号。<br>自动更新：新版本从这个项目的 GitHub 仓库下载，带签名，验过才用，下次打开生效；新版本启动不起来会自动退回装的这一版。</div>
+  </div>
+  <!-- 报问题：开好的 GitHub issue，电视编号和版本填在里面（app.js 的 reportQr） -->
+  <div id="opts-report"><div id="opts-qr"></div><div class="t" data-i18n>遇到问题？用手机扫这个码到 GitHub 留个 issue，这台电视的编号和版本已经填好，开发者会尽快想办法解决。</div></div>
+</div>
+
+<!-- 搜索 -->
+<div id="sx">
+  <div class="box">
+    <div class="h" data-i18n>搜索</div>
+    <div class="sub" data-i18n>在你所有的群和频道里找视频、音乐和 PDF：片名、说明文字、文件名都算。<br>用遥控器输入，输完按屏幕键盘上的「完成」。按返回键取消。</div>
+    <input id="sx-q" type="text" autocomplete="off">
+    <div class="lab" id="sx-lab" data-i18n>最近搜过（按 ↓ 选）</div>
+    <div id="sx-recent"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<div id="lines"></div>
+
+<!-- 只有两个标签。其余由 boot.js 写：安装包自己的脚本，或者自动更新下载、验过签名的新版本（它的 SCRIPTS 才是现在的加载顺序，
+     新加的文件加在那里，不是这里）。config.js 留在外面：deploy.sh / release.sh 改写它，更新永远不带它。 -->
+<!-- pdf.js 2.16（老引擎那份）还假设有 globalThis / Promise.allSettled / String.replaceAll（Chromium 71 / 76 / 85）；
+     Tizen 5.0 是 Chromium 63。worker 那份文件开头也拼了同样一段（后台线程是另一个全局）。 -->
+<script>
+(function () {
+  if (typeof globalThis === "undefined") { window.globalThis = window; }
+  if (typeof Promise.allSettled !== "function") {
+    Promise.allSettled = function (list) {
+      return Promise.all(Array.prototype.map.call(list, function (p) {
+        return Promise.resolve(p).then(function (v) { return { status: "fulfilled", value: v }; },
+                                       function (e) { return { status: "rejected", reason: e }; });
+      }));
+    };
+  }
+  if (!String.prototype.replaceAll) {
+    String.prototype.replaceAll = function (search, replacement) {
+      var s = String(this);
+      if (search instanceof RegExp) { return s.replace(search, replacement); }
+      return s.split(String(search)).join(String(replacement));
+    };
+  }
+})();
+</script>
+<script src="js/pdf/pdf.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/boot.js"></script>
 </body>
 </html>
