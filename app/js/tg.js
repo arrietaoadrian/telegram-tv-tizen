@@ -17,6 +17,9 @@ var TG = (function () {
     var SUB_EXT = /\.(srt|ass|ssa|vtt)$/i;
     /* PDF：Telegram 的「文件」筛里有，和视频文件一样按扩展名 / MIME 认 */
     var PDF_EXT = /\.pdf$/i, PDF_MIME = /^application\/(x-)?pdf$/i;
+    /* 当文件发的音乐（MP3 / M4A / FLAC…）：很多频道就是这么发的，「音乐」筛（只收带歌名 / 歌手属性的音频消息）筛不出来，
+     * 得在「文件」那一路里按扩展名 / MIME 认，不然它们会被当成视频、交给视频播放器放。 */
+    var AUDIO_EXT = /\.(mp3|m4a|m4b|aac|flac|ogg|oga|opus|wav)$/i, AUDIO_MIME = /^audio\//i;
 
     function timeout(p, ms, what) {
         return Promise.race([p, new Promise(function (_, rej) { setTimeout(function () { rej(new Error(tx("{0} {1} 秒没回", tx(what), ms / 1000))); }, ms); })]);
@@ -146,7 +149,11 @@ var TG = (function () {
     }
 
     function isVideoMsg(m) { var d = m.media; return !!d && d.type === "video" && !d.isRound && !d.isAnimation; }
-    function isMusic(m) { return !!m.media && m.media.type === "audio"; }
+    function isAudioDoc(m) {
+        var d = m.media;
+        return !!d && d.type === "document" && (AUDIO_EXT.test(d.fileName || "") || AUDIO_MIME.test(d.mimeType || ""));
+    }
+    function isMusic(m) { return !!m.media && (m.media.type === "audio" || isAudioDoc(m)); }
     function isVideoDoc(m) {
         var d = m.media;
         return !!d && d.type === "document" && (VIDEO_EXT.test(d.fileName || "") || VIDEO_MIME.test(d.mimeType || ""));
@@ -165,7 +172,7 @@ var TG = (function () {
         if (n) { return n; }
         var docs = await again(function () { return client.searchMessages({ chatId: sourceId, filter: DOCS, limit: 40 }); });
         docs.forEach(noteSub);
-        n = docs.filter(isPlayableDoc).length;
+        n = docs.filter(function (m) { return isPlayableDoc(m) || isAudioDoc(m); }).length;
         if (n) { return n; }
         var mu = await again(function () { return client.searchMessages({ chatId: sourceId, filter: MUSIC, limit: 1 }); });
         return mu.total || mu.length;
@@ -209,7 +216,7 @@ var TG = (function () {
     function videos(sourceId, cursor, limit) {
         var c = cursor || { runs: [
             run(function (next) { return client.searchMessages({ chatId: sourceId, filter: VIDEO, limit: 40, offset: next }); }, isVideoMsg),
-            run(function (next) { return client.searchMessages({ chatId: sourceId, filter: DOCS, limit: 40, offset: next }); }, isPlayableDoc),
+            run(function (next) { return client.searchMessages({ chatId: sourceId, filter: DOCS, limit: 40, offset: next }); }, function (m) { return isPlayableDoc(m) || isAudioDoc(m); }),
             run(function (next) { return client.searchMessages({ chatId: sourceId, filter: MUSIC, limit: 40, offset: next }); }, isMusic)
         ] };
         return merged(c, limit || 40);
@@ -219,7 +226,7 @@ var TG = (function () {
     function search(query, cursor, limit) {
         var c = cursor || { runs: [
             run(function (next) { return client.searchGlobal({ query: query, filter: VIDEO, limit: 40, offset: next }); }, isVideoMsg),
-            run(function (next) { return client.searchGlobal({ query: query, filter: DOCS, limit: 40, offset: next }); }, isPlayableDoc),
+            run(function (next) { return client.searchGlobal({ query: query, filter: DOCS, limit: 40, offset: next }); }, function (m) { return isPlayableDoc(m) || isAudioDoc(m); }),
             run(function (next) { return client.searchGlobal({ query: query, filter: MUSIC, limit: 40, offset: next }); }, isMusic)
         ] };
         return merged(c, limit || 40);
@@ -391,9 +398,10 @@ var TG = (function () {
 
     function describe(m) {
         var d = m.media;
-        if (d.type === "audio") { return describeMusic(m); }
+        if (d.type === "audio" || isAudioDoc(m)) { return describeMusic(m); }
         if (isPdfDoc(m)) { return describePdf(m); }
         return {
+            kind: "video",
             key: m.chat.id + ":" + m.id,           // 续播、本地记录用
             fileKey: d.uniqueFileId,                // 同一个文件转发到不同地方也一样
             msg: m,
@@ -435,7 +443,7 @@ var TG = (function () {
             fileKey: d.uniqueFileId,
             msg: m,
             doc: d,
-            asFile: false,
+            asFile: d.type === "document",
             chatTitle: (m.chat && (m.chat.title || m.chat.displayName)) || "",
             title: (d.title || "").trim() || fn.replace(/\.[a-z0-9]{2,4}$/i, "").replace(/_/g, " ").trim() || tx("音乐"),
             performer: (d.performer || "").trim(),

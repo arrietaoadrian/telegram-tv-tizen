@@ -12,7 +12,7 @@
     var S = {
         screen: "boot", zone: "grid",
         sources: [], railFocus: 0,
-        src: null, items: [], view: [], filter: "all", filterZone: false, filterFocus: 0,
+        src: null, items: [], view: [], filter: "all",
         next: undefined, total: 0, loading: false, gen: 0, focus: 0,
         thumbs: {}, thumbQ: [], thumbBusy: 0,
         playing: null, pending: null, pendTimer: 0, ovTimer: 0, backAt: 0, logoutAt: 0
@@ -388,7 +388,7 @@
         S.src = { id: src.id, title: src.title, kind: src.kind, url: src.url, query: src.query, archived: src.archived };
         if (src.kind !== "search" && src.kind !== "history") { Store.setLastSource(S.src); }      // 开机不重新搜一遍、不进播放记录，进上次的群
         var g = ++S.gen;
-        S.items = []; S.view = []; S.next = undefined; S.total = 0; S.focus = 0; S.gridOff = 0; S.loading = true; S.filterZone = false;
+        S.items = []; S.view = []; S.next = undefined; S.total = 0; S.focus = 0; S.gridOff = 0; S.loading = true;
         $("src-title").textContent = src.title;
         $("src-sub").textContent = T("加载中…");
         renderGrid();
@@ -859,7 +859,7 @@
     var FILTERS = [{ id: "all", key: "全部" }, { id: "video", key: "视频" }, { id: "music", key: "音乐" }, { id: "pdf", key: "PDF" }];
     function filterLabel(f) { return f.id === "pdf" ? "PDF" : T(f.key); }
     function matchFilter(it) {
-        return S.filter === "all" ? true : S.filter === "video" ? it.kind === "video" : it.kind === S.filter;
+        return S.filter === "all" ? true : S.filter === "video" ? (it.kind === "video" || it.kind === "web") : it.kind === S.filter;
     }
     /* Un índice de S.items pasado a índice de S.view (el filtro puede esconder lo de antes). */
     function viewIndex(i) {
@@ -870,10 +870,11 @@
     }
     function renderFilters() {
         var html = "";
-        FILTERS.forEach(function (f, i) {
-            var cls = "chip" + (S.filter === f.id ? " sel" : "") + (S.filterZone && i === S.filterFocus ? " focus" : "");
+        FILTERS.forEach(function (f) {
+            var cls = "chip" + (S.filter === f.id ? " sel" : "");
             html += "<span class='" + cls + "'>" + esc(filterLabel(f)) + "</span>";
         });
+        html += "<span class='chip hint'>" + esc(T("颜色键：红 视频 · 绿 音乐 · 黄 PDF · 蓝 全部")) + "</span>";
         $("filters").innerHTML = html;
     }
     function setFilter(id) {
@@ -883,14 +884,6 @@
         S.gridOff = 0;
         renderGrid();
         renderFilters();
-    }
-    /* Entrar en la fila de filtros (el cursor se pone en el tipo activo). */
-    function openFilterZone() {
-        S.filterZone = true;
-        S.filterFocus = 0;
-        for (var i = 0; i < FILTERS.length; i++) { if (FILTERS[i].id === S.filter) { S.filterFocus = i; } }
-        renderFilters();
-        updateFocus();
     }
 
     function cardHtml(it, i) {
@@ -955,7 +948,7 @@
         if (!S.view.length) { return; }
         S.focus = Math.max(0, Math.min(S.focus, S.view.length - 1));
         var el = $("c" + S.focus);
-        if (el && S.zone === "grid" && !S.filterZone) { el.classList.add("focus"); }
+        if (el && S.zone === "grid") { el.classList.add("focus"); }
         var row = Math.floor(S.focus / COLS), rows = Math.ceil(S.view.length / COLS);
         /* 只在要选的那一排露不全时才滚，滚到刚好露全为止；看得见的就只挪焦点、画面不动（第一版焦点那一排永远停在第二排的位置：
          * 想选第一排中间那个，一按上键整排滑下来，眼睛还得跟着找）。
@@ -2078,19 +2071,19 @@
 
     function homeKey(k) {
         var n = S.view.length;
+        /* Botones de color: ROJO vídeos, VERDE música, AMARILLO PDF, AZUL todo. Se aplican al momento;
+         * las flechas quedan sólo para moverse por la rejilla. */
+        var color = k === 403 ? "video" : k === 404 ? "music" : k === 405 ? "pdf" : k === 406 ? "all" : null;
+        if (color) {
+            setFilter(color);
+            toast(T("筛选：{0}", filterLabel(FILTERS.filter(function (x) { return x.id === color; })[0])));
+            return;
+        }
         if (k === 10009) {
-            if (S.filterZone) { S.filterZone = false; renderFilters(); updateFocus(); return; }
             if (S.zone === "rail") { S.zone = "grid"; renderRail(); updateFocus(); return; }
             if (Date.now() - S.backAt < 2000) { exitApp(); return; }
             S.backAt = Date.now();
             toast(T("再按一次返回键退出"));
-            return;
-        }
-        /* Fila de filtros: ←→ cambia el tipo (se aplica al momento), OK/↓/↑ vuelve a las tarjetas. */
-        if (S.filterZone) {
-            if (k === 37 && S.filterFocus > 0) { S.filterFocus--; renderFilters(); setFilter(FILTERS[S.filterFocus].id); }
-            else if (k === 39 && S.filterFocus < FILTERS.length - 1) { S.filterFocus++; renderFilters(); setFilter(FILTERS[S.filterFocus].id); }
-            else if (k === 13 || k === 40 || k === 38) { S.filterZone = false; renderFilters(); updateFocus(); }
             return;
         }
         if (S.zone === "rail") {
@@ -2118,7 +2111,6 @@
         if (!n) {
             if (k === 13 && S.src) { if (S.src.kind === "web") { S.loggedIn[S.src.id] = false; } openSource(S.src); }
             else if (k === 37) { toRail(); }
-            else if (k === 38) { openFilterZone(); }
             return;
         }
         if (k === 37) {
@@ -2126,8 +2118,7 @@
             S.focus--;
         } else if (k === 39) { if (S.focus + 1 < n && (S.focus + 1) % COLS) { S.focus++; } }
         else if (k === 38) {
-            if (S.focus < COLS) { openFilterZone(); return; }
-            S.focus -= COLS;
+            if (S.focus >= COLS) { S.focus -= COLS; }
         }
         else if (k === 40) { S.focus = Math.min(n - 1, S.focus + COLS); }
         else if (k === 13) { S.enterArmed = false; play(S.view[S.focus]); return; }

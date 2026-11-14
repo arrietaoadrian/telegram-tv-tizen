@@ -6,12 +6,20 @@ Channels, streaming video with seeking, music, PDF reading, Saved Messages and a
 
 ## Download
 
-Latest release: **[v1.4.0](https://github.com/arrietaoadrian/telegram-tv-tizen/releases/tag/v1.4.0)**
+Latest release: **[v1.4.1](https://github.com/arrietaoadrian/telegram-tv-tizen/releases/tag/v1.4.1)**
 
-- Package: [`Telegram-TV-1.4.0.wgt`](https://github.com/arrietaoadrian/telegram-tv-tizen/releases/download/v1.4.0/Telegram-TV-1.4.0.wgt)
+- Package: [`Telegram-TV-1.4.1.wgt`](https://github.com/arrietaoadrian/telegram-tv-tizen/releases/download/v1.4.1/Telegram-TV-1.4.1.wgt)
 - Install it with **Apps2Samsung** (Samsung + Partner signing).
 
-## What's new in 1.4.0
+## What's new in 1.4.1
+
+- **Music that downloaded but stayed silent now plays.** `app/js/music.js` was rewritten with three fallbacks: blob → data URL → hidden `<video>` element, plus retries on `canplay` and a clear on-screen message when the TV refuses to start the audio. WebAudio is no longer required to hear MP3 files.
+- **File filters fixed.** Web video links count as video, and each type (video / music / PDF) is classified from the real media object, so the filter no longer keeps showing items of other types.
+- **Colour buttons filter directly**, with no clash with the navigation arrows:
+  - **Red** → videos, **Green** → music, **Yellow** → PDF, **Blue** → everything.
+- A hint chip next to the filters shows the colour mapping, translated to the current language.
+
+## What changed in 1.4.0
 
 - **Channel sidebar always visible** while you browse channels and files. It only hides when a video, a song or a PDF opens full screen.
 - **File-type filter** at the top of the grid: **All · Video · Music · PDF**.

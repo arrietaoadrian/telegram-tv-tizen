@@ -39,6 +39,7 @@ html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; backgro
                  background: #1c2128; color: #9aa1a9; font-size: 26px; }
 #filters .chip.sel { background: #2aabee; color: #fff; }
 #filters .chip.focus { box-shadow: 0 0 0 4px #fff; color: #fff; }
+#filters .chip.hint { background: transparent; color: #6f7780; font-size: 22px; padding: 0 0 0 12px; }
 .card { position: absolute; width: 480px; height: 396px; }
 .thumb { position: relative; width: 480px; height: 270px; background: #1c2128; border-radius: 10px; overflow: hidden; }
 .thumb img { position: absolute; left: 0; top: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
